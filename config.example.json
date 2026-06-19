@@ -1,0 +1,9 @@
+{
+  "model": "sonnet",
+  "thinkingLevel": "max",
+  "monitorSeconds": 30,
+  "intervalSeconds": 3600,
+  "terminalAppBundleIdentifier": "com.apple.Terminal",
+  "maxTokens": 8192,
+  "temperature": 0.2
+}
