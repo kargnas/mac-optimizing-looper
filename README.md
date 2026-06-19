@@ -13,20 +13,9 @@ A macOS menu-bar app (no Dock icon) that runs a continuous **observe → ask Cla
 →  claude -p   (format pass → ranked JSON suggestions)
 ```
 
-The menu bar shows the count; the dropdown is ranked worst-first:
+The menu bar shows the count; the dropdown is ranked worst-first (🔴 critical → 🟡 warning → 🟢 hygiene). Each row expands into Copy / Show in Terminal / Review with Claude / Run Command Now:
 
-```
-🔴 3
-──────────────────────────────────────────────
-🔴 node (pid 8123) — 412% CPU, 6.1 GB
-   Runaway esbuild watcher from a dead terminal.
-   ▸ Copy   ▸ Show in Terminal   ▸ Review with Claude   ▸ Run Command Now
-   $ kill 8123
-🟠 Google Chrome Helper (pid 771) — 2.9 GB
-   28 background tabs pinned in memory.
-🟡 mds_stores — sustained 60% CPU
-   Spotlight reindexing an external volume.
-```
+<p align="center"><img src="docs/menu.png" alt="mac-optimizer-loop menu — ranked, severity-colored suggestions" width="520"></p>
 
 ## Run a fix — the gated path
 

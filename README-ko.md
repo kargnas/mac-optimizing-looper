@@ -13,20 +13,9 @@ Dock 아이콘 없는 macOS 메뉴바 앱. `claude` CLI 위에서 **관찰 → C
 →  claude -p   (포맷 패스 → 정렬된 JSON 제안)
 ```
 
-메뉴바에 개수가 뜨고, 드롭다운은 심각도 높은 순으로 정렬됨:
+메뉴바에 개수가 뜨고, 드롭다운은 심각도 높은 순으로 정렬됨(🔴 위급 → 🟡 경고 → 🟢 위생). 각 행은 Copy / Show in Terminal / Review with Claude / Run Command Now로 펼쳐짐:
 
-```
-🔴 3
-──────────────────────────────────────────────
-🔴 node (pid 8123) — 412% CPU, 6.1 GB
-   죽은 터미널이 남긴 esbuild 워처 폭주.
-   ▸ Copy   ▸ Show in Terminal   ▸ Review with Claude   ▸ Run Command Now
-   $ kill 8123
-🟠 Google Chrome Helper (pid 771) — 2.9 GB
-   백그라운드 탭 28개가 메모리 점유.
-🟡 mds_stores — 지속 60% CPU
-   외장 볼륨 Spotlight 재색인 중.
-```
+<p align="center"><img src="docs/menu.png" alt="mac-optimizer-loop 메뉴 — 심각도 색상별 정렬 제안" width="520"></p>
 
 ## 해결 실행 — 게이트가 걸린 경로
 
