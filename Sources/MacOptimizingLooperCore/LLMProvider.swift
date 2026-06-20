@@ -9,8 +9,8 @@ public enum LLMProviderKind: String, CaseIterable, Sendable, Equatable {
 
     public var displayName: String {
         switch self {
-        case .claude: return "Claude"
-        case .codex: return "Codex"
+        case .claude: return "Claude Code"
+        case .codex: return "Codex CLI"
         }
     }
 
