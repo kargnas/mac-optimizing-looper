@@ -1,5 +1,7 @@
 # mac-optimizing-looper
 
+[English](README.md) · **한국어** · [简体中文](README-zh-Hans.md) · [繁體中文](README-zh-Hant.md) · [日本語](README-ja.md) · [Español](README-es.md) · [Deutsch](README-de.md) · [Français](README-fr.md) · [Português](README-pt-BR.md) · [Русский](README-ru.md)
+
 **N분마다 Mac 부하를 Claude에게 보냄 → Claude가 CPU/RAM을 실제로 잡아먹는 범인을 심각도순으로 정렬하고, 정확한 해결 명령을 메뉴바에 띄움. 클릭 한 번이면 실행되지만, 두 번째 Claude 패스가 그 명령을 SAFE로 판정한 뒤에만 실행됨.**
 
 Dock 아이콘 없는 macOS 메뉴바 앱. 로컬 LLM CLI 위에서 **관찰 → 모델에게 질의 → 제안 → (선택적) 실행** 루프를 계속 돌림. 스스로는 절대 시스템을 건드리지 않음. 모든 동작은 명시적이고 위험 검사를 거친 클릭 한 번임.
@@ -102,4 +104,3 @@ bare 바이너리가 아니라 **번들**로 실행할 것 — `UNUserNotificati
 - **`claude` CLI 없음 = 제안 없음.** 추측하지 않고 오류를 드러냄.
 - 알림은 앱 번들이 필요함. bare 바이너리는 알림을 못 띄우고 결과 창을 직접 여는 것으로 폴백함.
 
-[English README →](README.md)

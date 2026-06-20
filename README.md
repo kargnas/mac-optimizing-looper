@@ -1,5 +1,7 @@
 # mac-optimizing-looper
 
+**English** · [한국어](README-ko.md) · [简体中文](README-zh-Hans.md) · [繁體中文](README-zh-Hant.md) · [日本語](README-ja.md) · [Español](README-es.md) · [Deutsch](README-de.md) · [Français](README-fr.md) · [Português](README-pt-BR.md) · [Русский](README-ru.md)
+
 **Every N minutes your Mac's load goes to Claude → Claude ranks what's actually eating CPU/RAM and drops the exact fix into your menu bar. One click runs it — but only after a second Claude pass clears the command as safe.**
 
 A macOS menu-bar app (no Dock icon) that runs a continuous **observe → ask the model → advise → (optionally) act** loop on top of a local LLM CLI. It never touches your system on its own; every action is one explicit, risk-checked click.
@@ -102,4 +104,3 @@ Run the **bundle**, not the bare binary — `UNUserNotificationCenter` needs a r
 - **No `claude` CLI = no advice.** It surfaces the error instead of guessing.
 - Notifications need the app bundle; a bare binary can't post them and falls back to opening the result window.
 
-[한국어 README →](README-ko.md)
