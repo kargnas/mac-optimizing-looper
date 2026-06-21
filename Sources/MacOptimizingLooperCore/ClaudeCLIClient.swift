@@ -84,13 +84,14 @@ public struct ClaudeCLIClient: LLMClient {
             "-p",
             "--no-session-persistence",
             // We run claude headless from a background app, so there is no TTY to answer
-            // an interactive permission prompt. In headless mode the default is to deny
-            // any tool call that would need approval; `auto` instead lets claude's safety
-            // classifier auto-approve safe tool calls (e.g. a read-only /mac-optimizer
-            // probe) and gate risky ones. NOT a hard write-block: a "safe"-classified
-            // write still runs — the real no-write guarantee would be an OS sandbox
-            // around this process (codex already runs under `--sandbox read-only`).
-            "--permission-mode", "auto",
+            // an interactive permission prompt. `plan` is read-only: claude may run
+            // read-only inspections (verified: `ps`; likewise df/du/vm_stat for capacity)
+            // to investigate, but writes/edits are categorically blocked by the mode —
+            // independent of how any individual command would be classified. This still
+            // lets claude RECOMMEND a fix command as inert text; the app (not claude) runs
+            // it later on the user's click. For a kernel-enforced guarantee an OS sandbox
+            // could wrap this process; codex already runs under `--sandbox read-only`.
+            "--permission-mode", "plan",
             "--output-format", "text",
             "--effort", effort.isEmpty ? "low" : effort,
             "--system-prompt", request.system
