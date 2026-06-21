@@ -7,7 +7,7 @@
 ![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-F05138?logo=swift&logoColor=white)
 ![Menu bar app](https://img.shields.io/badge/menu--bar-no%20Dock%20icon-success)
 
-**Votre Mac s'étrangle → Claude nomme le processus exact qui le dévore → un clic le tue. Il n'agit jamais de lui-même.**
+**Votre Mac s'étrangle → Claude nomme le processus exact qui le dévore → un clic le tue. Rien ne se passe tant que vous ne cliquez pas — donc aucun risque pour votre Mac.**
 
 Toutes les heures, la charge de votre Mac part chez Claude. Il classe ce qui mange *vraiment* votre CPU/RAM, rédige la correction exacte et la dépose dans votre barre de menus — le pire en haut, codé par couleur, à un clic. Et avant que quoi que ce soit ne s'exécute, une *seconde* passe de Claude doit valider la commande comme **SAFE**.
 

@@ -7,7 +7,7 @@
 ![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-F05138?logo=swift&logoColor=white)
 ![Menu bar app](https://img.shields.io/badge/menu--bar-no%20Dock%20icon-success)
 
-**Tu Mac se ahoga → Claude señala el proceso exacto que se lo está comiendo → un clic lo mata. Nunca actúa por su cuenta.**
+**Tu Mac se ahoga → Claude señala el proceso exacto que se lo está comiendo → un clic lo mata. No pasa nada hasta que haces clic, así que no hay ningún riesgo para tu Mac.**
 
 Cada hora, la carga de tu Mac viaja a Claude. Clasifica lo que *de verdad* está devorando tu CPU/RAM, escribe la solución exacta y la suelta en tu barra de menús: lo peor primero, con código de color, a un clic de distancia. Y antes de ejecutar nada, una *segunda* pasada de Claude tiene que dar luz verde al comando como **SAFE**.
 

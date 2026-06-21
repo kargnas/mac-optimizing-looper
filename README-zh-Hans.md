@@ -7,7 +7,7 @@
 ![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-F05138?logo=swift&logoColor=white)
 ![Menu bar app](https://img.shields.io/badge/menu--bar-no%20Dock%20icon-success)
 
-**Mac 一卡 → Claude 当场点名是哪个进程在吃资源 → 一键干掉它。它绝不会自作主张。**
+**Mac 一卡 → Claude 当场点名是哪个进程在吃资源 → 一键干掉它。你不点，它就什么都不做——所以没有任何风险。**
 
 每隔一小时，你 Mac 的负载就发给 Claude。它把*真正*在啃你 CPU/RAM 的家伙排出名次，写好准确的修复命令，直接送进你的菜单栏——最严重的排最前、按颜色分级、一键搞定。而在任何命令执行之前，还得有*第二轮* Claude 校验把它放行为 **SAFE**。
 

@@ -7,7 +7,7 @@
 ![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-F05138?logo=swift&logoColor=white)
 ![Menu bar app](https://img.shields.io/badge/menu--bar-no%20Dock%20icon-success)
 
-**Dein Mac würgt → Claude nennt exakt den Prozess, der ihn auffrisst → ein Klick beendet ihn. Von allein rührt es nie etwas an.**
+**Dein Mac würgt → Claude nennt exakt den Prozess, der ihn auffrisst → ein Klick beendet ihn. Bis du klickst, passiert nichts — also kein Risiko für deinen Mac.**
 
 Jede Stunde wandert die Auslastung deines Macs zu Claude. Es sortiert, was *wirklich* deine CPU/RAM verschlingt, schreibt den exakten Fix und legt ihn in deine Menüleiste – das Schlimmste zuerst, farbcodiert, einen Klick entfernt. Und bevor irgendetwas läuft, muss ein *zweiter* Claude-Durchlauf den Befehl als **SAFE** freigeben.
 

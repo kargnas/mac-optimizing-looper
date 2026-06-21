@@ -7,7 +7,7 @@
 ![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-F05138?logo=swift&logoColor=white)
 ![Menu bar app](https://img.shields.io/badge/menu--bar-no%20Dock%20icon-success)
 
-**Mac 一卡 → Claude 直接點名是哪個程序在吃資源 → 一鍵收掉它。它從不自作主張。**
+**Mac 一卡 → Claude 直接點名是哪個程序在吃資源 → 一鍵收掉它。你不點，它就什麼都不做——所以沒有任何風險。**
 
 每小時，你 Mac 的負載都會送一份給 Claude。它排出*真正*在啃 CPU/RAM 的兇手，寫好確切的修復指令，丟進你的選單列——最嚴重的排最前、依顏色分級、一鍵就能解決。而且在動手之前，還得讓*第二輪* Claude 把這道指令蓋上 **SAFE** 章。
 

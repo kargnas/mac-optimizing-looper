@@ -7,7 +7,7 @@
 ![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-F05138?logo=swift&logoColor=white)
 ![Menu bar app](https://img.shields.io/badge/menu--bar-Dock%20아이콘%20없음-success)
 
-**Mac이 버벅대면 → Claude가 CPU/RAM을 잡아먹는 범인 프로세스를 콕 집어내고 → 클릭 한 번에 끝냄. 단, 앱이 스스로 손대는 일은 절대 없음.**
+**Mac이 버벅대면 → Claude가 CPU/RAM을 잡아먹는 범인 프로세스를 콕 집어내고 → 클릭 한 번에 끝냄. 당신이 누르기 전까진 아무 일도 안 일어남 — 그래서 위험할 게 없음.**
 
 매시간 Mac의 부하가 Claude에게 전달됨. Claude는 *진짜로* CPU/RAM을 잡아먹는 놈을 심각도순으로 정렬하고, 정확한 해결 명령을 작성해서 메뉴바에 띄움 — 위험한 순서대로, 색깔로 구분해서, 클릭 한 번 거리에. 그리고 뭔가 실행되기 전에, *두 번째* Claude 패스가 그 명령을 반드시 **SAFE**로 판정해야 함.
 

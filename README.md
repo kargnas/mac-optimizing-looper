@@ -7,7 +7,7 @@
 ![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-F05138?logo=swift&logoColor=white)
 ![Menu bar app](https://img.shields.io/badge/menu--bar-no%20Dock%20icon-success)
 
-**Your Mac chokes → Claude names the exact process eating it → one click kills it. It never acts on its own.**
+**Your Mac chokes → Claude names the exact process eating it → one click kills it. Nothing happens until you click — so there's no risk to your Mac.**
 
 Every hour, your Mac's load goes to Claude. It ranks what's *actually* hogging your CPU/RAM, writes the exact fix, and drops it in your menu bar — worst-first, color-coded, one click away. And before anything runs, a *second* Claude pass has to clear the command as **SAFE**.
 

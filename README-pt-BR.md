@@ -7,7 +7,7 @@
 ![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-F05138?logo=swift&logoColor=white)
 ![Menu bar app](https://img.shields.io/badge/menu--bar-no%20Dock%20icon-success)
 
-**Seu Mac engasga → o Claude aponta o processo exato que está sugando tudo → um clique o encerra. Ele nunca age sozinho.**
+**Seu Mac engasga → o Claude aponta o processo exato que está sugando tudo → um clique o encerra. Nada acontece até você clicar — então, nenhum risco para o seu Mac.**
 
 A cada hora, a carga do seu Mac vai para o Claude. Ele ranqueia o que *de verdade* está devorando sua CPU/RAM, escreve a correção exata e a entrega na sua barra de menus — pior primeiro, codificada por cor, a um clique de distância. E antes de qualquer coisa rodar, uma *segunda* passagem do Claude precisa liberar o comando como **SAFE**.
 

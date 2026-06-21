@@ -7,7 +7,7 @@
 ![SwiftPM](https://img.shields.io/badge/SwiftPM-compatible-F05138?logo=swift&logoColor=white)
 ![Menu bar app](https://img.shields.io/badge/menu--bar-no%20Dock%20icon-success)
 
-**Mac が固まる → Claude が食ってるプロセスを名指しする → ワンクリックで仕留める。勝手には絶対に動かない。**
+**Mac が固まる → Claude が食ってるプロセスを名指しする → ワンクリックで仕留める。あなたがクリックするまで何も起きない——だから危険はない。**
 
 1 時間ごとに、Mac の負荷が Claude に渡ります。*本当に* CPU/RAM を食っているものを順位付けし、効く修正をそのまま書き出して、メニューバーに並べます — 重い順、色分け、ワンクリック。しかも何かを走らせる前に、*もう一度* Claude のパスがそのコマンドを **SAFE** と認めなければなりません。
 
