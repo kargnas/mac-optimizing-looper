@@ -17,6 +17,8 @@
 "menu.settings" = "Ajustes…";
 "menu.checkForUpdates" = "Buscar actualizaciones…";
 "menu.quit" = "Salir";
+"menu.choiceDefault" = "Predeterminado";
+"menu.choiceDefaultWith" = "Predeterminado (%@)";
 
 /* Acciones de fila de sugerencia */
 "action.showInTerminal" = "Mostrar el comando en el Terminal";

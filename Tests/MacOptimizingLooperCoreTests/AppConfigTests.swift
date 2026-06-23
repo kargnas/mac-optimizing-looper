@@ -5,8 +5,9 @@ final class AppConfigTests: XCTestCase {
     func testLoadWithEmptyEnvironmentAndNoFileReturnsDefaults() throws {
         let config = try AppConfig.load(environment: [:], fileContents: nil)
 
-        XCTAssertEqual(config.model, "sonnet")
-        XCTAssertEqual(config.thinkingLevel, "max")
+        // Fresh defaults are the "Default" (auto) sentinels, resolved at runtime.
+        XCTAssertEqual(config.model, AppConfig.autoSelection)
+        XCTAssertEqual(config.thinkingLevel, AppConfig.autoSelection)
         XCTAssertEqual(config.monitorSeconds, 30)
         XCTAssertEqual(config.intervalSeconds, 3_600)
         XCTAssertNil(config.outputLanguageIdentifier)
@@ -44,7 +45,7 @@ final class AppConfigTests: XCTestCase {
     func testNilFileContentsReturnsDefaults() throws {
         let config = try AppConfig.load(environment: [:], fileContents: nil)
 
-        XCTAssertEqual(config.model, "sonnet")
+        XCTAssertEqual(config.model, AppConfig.autoSelection)
         XCTAssertEqual(config.intervalSeconds, 3_600)
     }
 
@@ -85,5 +86,55 @@ final class AppConfigTests: XCTestCase {
         )
 
         XCTAssertNil(language)
+    }
+
+    // MARK: - "Default" (auto) selection
+
+    func testDefaultsAreAutoSelections() throws {
+        let config = try AppConfig.load(environment: [:], fileContents: nil)
+        XCTAssertTrue(config.isProviderAuto)
+        XCTAssertTrue(config.isModelAuto)
+        XCTAssertTrue(config.isThinkingAuto)
+        XCTAssertEqual(config.resolvedProviderKind, .claude)
+    }
+
+    func testAutoSelectionSentinelSurvivesNormalization() {
+        XCTAssertEqual(AppConfig.normalizedProvider("default"), AppConfig.autoSelection)
+        XCTAssertEqual(AppConfig.normalizedProvider("DEFAULT"), AppConfig.autoSelection)
+        XCTAssertEqual(AppConfig.normalizedThinkingLevel("default"), AppConfig.autoSelection)
+        XCTAssertEqual(AppConfig.normalizedProvider("codex"), "codex")
+        XCTAssertEqual(AppConfig.normalizedProvider("weird"), "claude")
+    }
+
+    func testAutoEffortIsOneStepBelowTop() {
+        // Claude (…,xhigh,max) → xhigh; codex (…,high,xhigh) → high; order-independent.
+        XCTAssertEqual(AppConfig.autoEffort(levels: ["low", "medium", "high", "xhigh", "max"]), "xhigh")
+        XCTAssertEqual(AppConfig.autoEffort(levels: ["low", "medium", "high", "xhigh"]), "high")
+        XCTAssertEqual(AppConfig.autoEffort(levels: ["xhigh", "max", "low"]), "xhigh")
+        XCTAssertEqual(AppConfig.autoEffort(levels: ["max"]), "max")
+        XCTAssertEqual(AppConfig.autoEffort(levels: []), "")
+    }
+
+    func testResolvedModelAndEffortForAutoConfig() throws {
+        let config = try AppConfig.load(environment: [:], fileContents: nil)   // all auto
+        let catalog = ClaudeModelCatalog().load()
+        XCTAssertEqual(config.resolvedModelSlug(catalog: catalog), "sonnet")
+        let levels = catalog.model(slug: "sonnet")?.effortLevels ?? []
+        XCTAssertEqual(config.resolvedThinkingLevel(levels: levels), "xhigh")
+    }
+
+    func testExplicitPinsOverrideAuto() throws {
+        let config = try AppConfig.load(
+            environment: [:],
+            fileContents: Data(#"{ "model": "opus", "thinkingLevel": "low" }"#.utf8)
+        )
+        let catalog = ClaudeModelCatalog().load()
+        XCTAssertFalse(config.isModelAuto)
+        XCTAssertFalse(config.isThinkingAuto)
+        XCTAssertEqual(config.resolvedModelSlug(catalog: catalog), "opus")
+        XCTAssertEqual(
+            config.resolvedThinkingLevel(levels: ["low", "medium", "high", "xhigh", "max"]),
+            "low"
+        )
     }
 }

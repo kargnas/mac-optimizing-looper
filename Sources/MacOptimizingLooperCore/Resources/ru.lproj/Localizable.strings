@@ -17,6 +17,8 @@
 "menu.settings" = "Настройки…";
 "menu.checkForUpdates" = "Проверить обновления…";
 "menu.quit" = "Завершить";
+"menu.choiceDefault" = "По умолчанию";
+"menu.choiceDefaultWith" = "По умолчанию (%@)";
 
 /* Действия в строке рекомендации */
 "action.showInTerminal" = "Показать команду в Терминале";

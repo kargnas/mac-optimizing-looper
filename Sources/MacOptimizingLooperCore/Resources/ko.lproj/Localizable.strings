@@ -17,6 +17,8 @@
 "menu.settings" = "설정…";
 "menu.checkForUpdates" = "업데이트 확인…";
 "menu.quit" = "종료";
+"menu.choiceDefault" = "기본값";
+"menu.choiceDefaultWith" = "기본값 (%@)";
 
 /* 제안 행 동작 */
 "action.showInTerminal" = "터미널에서 명령어 보기";

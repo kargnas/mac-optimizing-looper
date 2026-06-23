@@ -17,6 +17,8 @@
 "menu.settings" = "設定…";
 "menu.checkForUpdates" = "アップデートを確認…";
 "menu.quit" = "終了";
+"menu.choiceDefault" = "デフォルト";
+"menu.choiceDefaultWith" = "デフォルト (%@)";
 
 /* 提案行の操作 */
 "action.showInTerminal" = "ターミナルにコマンドを表示";

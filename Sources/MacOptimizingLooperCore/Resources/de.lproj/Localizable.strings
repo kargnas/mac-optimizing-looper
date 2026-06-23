@@ -17,6 +17,8 @@
 "menu.settings" = "Einstellungen …";
 "menu.checkForUpdates" = "Nach Updates suchen …";
 "menu.quit" = "Beenden";
+"menu.choiceDefault" = "Standard";
+"menu.choiceDefaultWith" = "Standard (%@)";
 
 /* Aktionen je Vorschlagszeile */
 "action.showInTerminal" = "Befehl im Terminal anzeigen";

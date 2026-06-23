@@ -97,6 +97,11 @@ public struct AppStrings {
     public var settingsMenuItem: String { str("menu.settings") }
     public var checkForUpdatesMenuItem: String { str("menu.checkForUpdates") }
     public var quit: String { str("menu.quit") }
+    /// "Default" entry in the provider/model/effort quick-switch submenus and settings popups.
+    public var choiceDefault: String { str("menu.choiceDefault") }
+    /// "Default (X)" — the auto choice annotated with what it currently resolves to,
+    /// e.g. "Default (Sonnet)" / "Default (xhigh)".
+    public func choiceDefaultWith(_ resolved: String) -> String { fmt("menu.choiceDefaultWith", resolved) }
     public var openCommandInTerminal: String { str("action.showInTerminal") }
     public var reviewWithClaude: String { str("action.reviewWithClaude") }
     /// Provider-aware variant of the review action label (e.g. "Review with Codex CLI").

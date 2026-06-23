@@ -17,6 +17,8 @@
 "menu.settings" = "設定…";
 "menu.checkForUpdates" = "檢查更新…";
 "menu.quit" = "結束";
+"menu.choiceDefault" = "預設";
+"menu.choiceDefaultWith" = "預設 (%@)";
 
 /* 建議列動作 */
 "action.showInTerminal" = "在終端機顯示指令";

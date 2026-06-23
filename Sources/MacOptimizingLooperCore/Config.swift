@@ -27,6 +27,18 @@ public struct AppConfig: Equatable {
 
     public static let validThinkingLevels = ["low", "medium", "high", "xhigh", "max"]
 
+    /// Sentinel meaning "follow the app's recommended choice", resolved at runtime against
+    /// the live provider catalog. Stored verbatim in config and shown as the "Default"
+    /// picker entry. Keeping it as a stored sentinel (not a baked value) lets a provider
+    /// switch auto-carry a valid model + effort instead of leaving a stale, cross-provider pin.
+    public static let autoSelection = "default"
+
+    /// Ascending strength rank for known effort levels. Used to derive the auto default
+    /// ("one step below the top") regardless of how a catalog happens to order its levels.
+    private static let effortRank: [String: Int] = [
+        "low": 0, "medium": 1, "high": 2, "xhigh": 3, "max": 4
+    ]
+
     /// One selectable UI/analysis language: a BCP-47 identifier matching a shipped
     /// `<id>.lproj`, plus the language's own autonym for the Settings popup.
     public struct SupportedLanguage: Equatable, Sendable {
@@ -79,10 +91,12 @@ public struct AppConfig: Equatable {
     }
 
     public static func defaults(environment: [String: String]) -> AppConfig {
+        // Fresh installs start fully on "Default": provider/model/effort all auto-resolve
+        // (provider → Claude, model → that provider's default, effort → one below the top).
         var config = AppConfig(
-            provider: "claude",
-            model: "sonnet",
-            thinkingLevel: "max",
+            provider: autoSelection,
+            model: autoSelection,
+            thinkingLevel: autoSelection,
             fastMode: false,
             monitorSeconds: 30,
             intervalSeconds: 3_600,
@@ -210,19 +224,81 @@ public struct AppConfig: Equatable {
 
     /// Clamps a thinking level to a known Claude `--effort` value, defaulting to
     /// "max" for empty/unknown input so a typo never silently weakens reasoning.
+    /// The `autoSelection` sentinel passes through untouched (resolved later per model).
     public static func normalizedThinkingLevel(_ value: String) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if trimmed == autoSelection { return autoSelection }
         return validThinkingLevels.contains(trimmed) ? trimmed : "max"
     }
 
     /// Resolves a provider string to a known backend's rawValue, defaulting to claude.
+    /// The `autoSelection` sentinel passes through so "Default" survives a save/load round-trip.
     public static func normalizedProvider(_ value: String) -> String {
-        LLMProviderKind.resolved(value).rawValue
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if trimmed == autoSelection { return autoSelection }
+        return LLMProviderKind.resolved(value).rawValue
     }
 
-    /// The resolved provider backend for this config.
+    /// The resolved provider backend for this config. `autoSelection` → Claude.
     public var resolvedProviderKind: LLMProviderKind {
         LLMProviderKind.resolved(provider)
+    }
+
+    // MARK: - "Default" (auto) selection resolution
+
+    /// True when the provider is the auto/"Default" sentinel.
+    public var isProviderAuto: Bool {
+        provider.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == Self.autoSelection
+    }
+
+    /// True when the model is auto/"Default" (sentinel or empty).
+    public var isModelAuto: Bool {
+        let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return trimmed == Self.autoSelection || trimmed.isEmpty
+    }
+
+    /// True when the effort is the auto/"Default" sentinel.
+    public var isThinkingAuto: Bool {
+        thinkingLevel.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == Self.autoSelection
+    }
+
+    /// The auto reasoning level: one step below the highest the model offers — the user's
+    /// chosen default (strong, but not the slowest/most-expensive top tier). Claude
+    /// (…,xhigh,max) → xhigh; codex (…,high,xhigh) → high. A single-level list returns it.
+    public static func autoEffort(levels: [String]) -> String {
+        let ranked = levels
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { !$0.isEmpty }
+            .sorted { (effortRank[$0] ?? -1) < (effortRank[$1] ?? -1) }
+        guard !ranked.isEmpty else { return "" }
+        return ranked[max(0, ranked.count - 2)]
+    }
+
+    /// The auto/"Default" model for a provider: a balanced, valid catalog slug.
+    /// Claude → "sonnet" (the long-shipped default; not the priciest top model). Codex → the
+    /// first catalog entry. Empty when the catalog is empty (CLI then uses its own default).
+    public static func autoModelSlug(kind: LLMProviderKind, catalog: ProviderCatalog) -> String {
+        switch kind {
+        case .claude:
+            if catalog.model(slug: "sonnet") != nil { return "sonnet" }
+            return catalog.models.first?.slug ?? ""
+        case .codex:
+            return catalog.models.first?.slug ?? ""
+        }
+    }
+
+    /// Concrete model slug for this config: an explicit pin as-is, or the provider's auto
+    /// model when set to "Default".
+    public func resolvedModelSlug(catalog: ProviderCatalog) -> String {
+        guard isModelAuto else { return model }
+        return Self.autoModelSlug(kind: resolvedProviderKind, catalog: catalog)
+    }
+
+    /// Concrete effort for this config: an explicit pin as-is, or `autoEffort` over the
+    /// supplied levels when set to "Default".
+    public func resolvedThinkingLevel(levels: [String]) -> String {
+        guard isThinkingAuto else { return thinkingLevel }
+        return Self.autoEffort(levels: levels)
     }
 
     /// Clamps the sustained-monitor duration to a sane range (0–600s; 0 disables it).

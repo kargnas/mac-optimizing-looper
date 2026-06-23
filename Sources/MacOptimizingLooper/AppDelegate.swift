@@ -138,13 +138,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         advisorLoop?.fireNow()
     }
 
+    /// Resolves any "Default" (auto) selections to concrete provider/model/effort against the
+    /// live catalog, so every actual provider invocation (analysis, review, run-command risk
+    /// check) receives real values. The stored config keeps the sentinels.
+    private func effectiveConfig() -> AppConfig {
+        var resolved = config
+        let kind = config.resolvedProviderKind
+        let catalog = ProviderRegistry.catalog(kind: kind).load()
+        resolved.provider = kind.rawValue
+        resolved.model = config.resolvedModelSlug(catalog: catalog)
+        let levels = catalog.model(slug: resolved.model)?.effortLevels ?? AppConfig.validThinkingLevels
+        resolved.thinkingLevel = config.resolvedThinkingLevel(levels: levels)
+        return resolved
+    }
+
     private func runAnalysis() async {
         guard !isAnalyzing else { return }
 
         beginAnalysisStatus()
 
         do {
-            let config = config
+            // Resolve "Default" selections to concrete values up front so the detached task
+            // and the CLI see a real provider/model/effort.
+            let config = effectiveConfig()
             let (snapshot, advice) = try await Task.detached(priority: .utility) {
                 let text = AppStrings(languageIdentifier: config.resolvedOutputLanguageIdentifier())
                 let collector = SystemMetricsCollector()
@@ -248,30 +264,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             string: " \(analysisSpinnerFrames[analysisSpinnerIndex])",
             attributes: spinnerAttributes
         )
-        // First-run only: no prior advice yet, so the spinner is on its own.
-        // Surface the model name (e.g. "Sonnet") to tell the user WHAT is running.
-        // Re-analyses keep the previous menu state visible elsewhere; no need to repeat.
-        if latestAdvice == nil {
-            let labelAttributes: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .regular),
-                .foregroundColor: NSColor.secondaryLabelColor
-            ]
-            result.append(NSAttributedString(
-                string: " \(displayModelName())",
-                attributes: labelAttributes
-            ))
-        }
+        // Always name the active provider while analyzing — every run, not just the first —
+        // so the user can see WHICH backend is working (previously this showed only on the
+        // first run, so on re-analyses the provider flickered in and out of view).
+        let labelAttributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .regular),
+            .foregroundColor: NSColor.secondaryLabelColor
+        ]
+        result.append(NSAttributedString(
+            string: " \(providerShortName())",
+            attributes: labelAttributes
+        ))
         button.attributedTitle = result
     }
 
-    private func displayModelName() -> String {
-        let lower = config.model.lowercased()
-        if lower.contains("opus") { return "Opus" }
-        if lower.contains("sonnet") { return "Sonnet" }
-        if lower.contains("haiku") { return "Haiku" }
-        if lower.contains("gpt") { return "GPT" }
-        if lower.contains("gemini") { return "Gemini" }
-        return config.model
+    /// Short menu-bar label for the active provider (config "Default" → its resolved backend).
+    private func providerShortName() -> String {
+        switch config.resolvedProviderKind {
+        case .claude: return "Claude"
+        case .codex: return "Codex"
+        }
     }
 
     private func applyFailureDisplay(to button: NSStatusBarButton) {
@@ -442,6 +454,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             menu.addItem(emptyItem)
         }
 
+        // Quick-switch: change provider / model / effort straight from the menu bar,
+        // without opening Settings. Each carries a "Default" (auto) entry as the first choice.
+        menu.addItem(.separator())
+        menu.addItem(providerMenuItem())
+        menu.addItem(modelMenuItem())
+        menu.addItem(effortMenuItem())
+
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: text.analyzeNow, action: #selector(analyzeNow(_:)), keyEquivalent: "r"))
         menu.addItem(NSMenuItem(title: text.settingsMenuItem, action: #selector(showSettings(_:)), keyEquivalent: ","))
@@ -454,6 +473,138 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         for item in menu.items where item.action != nil {
             item.target = self
         }
+    }
+
+    // MARK: - Provider / model / effort quick-switch (menu bar, no Settings window)
+
+    /// Catalog for the currently-resolved provider; populates the quick-switch submenus and
+    /// labels each "Default" entry with what it resolves to right now.
+    private func currentCatalog() -> ProviderCatalog {
+        ProviderRegistry.catalog(kind: config.resolvedProviderKind).load()
+    }
+
+    private func choiceItem(title: String, value: String, checked: Bool, action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        item.representedObject = value
+        item.state = checked ? .on : .off
+        return item
+    }
+
+    private func providerMenuItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: strings.providerLabel, action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        // "Default" provider always resolves to the auto backend (Claude), independent of any
+        // current pin — so label it with that, not with the currently-selected provider.
+        let autoProvider = LLMProviderKind.resolved(AppConfig.autoSelection)
+        sub.addItem(choiceItem(
+            title: strings.choiceDefaultWith(autoProvider.displayName),
+            value: AppConfig.autoSelection,
+            checked: config.isProviderAuto,
+            action: #selector(selectProviderChoice(_:))
+        ))
+        sub.addItem(.separator())
+        for kind in LLMProviderKind.allCases {
+            sub.addItem(choiceItem(
+                title: kind.displayName,
+                value: kind.rawValue,
+                checked: !config.isProviderAuto && config.resolvedProviderKind == kind,
+                action: #selector(selectProviderChoice(_:))
+            ))
+        }
+        parent.submenu = sub
+        return parent
+    }
+
+    private func modelMenuItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: strings.modelLabel, action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        let catalog = currentCatalog()
+        let autoSlug = AppConfig.autoModelSlug(kind: config.resolvedProviderKind, catalog: catalog)
+        let autoName = catalog.model(slug: autoSlug)?.displayName ?? autoSlug
+        sub.addItem(choiceItem(
+            title: strings.choiceDefaultWith(autoName.isEmpty ? "—" : autoName),
+            value: AppConfig.autoSelection,
+            checked: config.isModelAuto,
+            action: #selector(selectModelChoice(_:))
+        ))
+        if !catalog.models.isEmpty { sub.addItem(.separator()) }
+        for model in catalog.models {
+            sub.addItem(choiceItem(
+                title: model.displayName,
+                value: model.slug,
+                checked: !config.isModelAuto && config.model == model.slug,
+                action: #selector(selectModelChoice(_:))
+            ))
+        }
+        // A pinned model not in the catalog (custom / hand-edited) still shows, checked.
+        if !config.isModelAuto, !config.model.isEmpty, catalog.model(slug: config.model) == nil {
+            sub.addItem(.separator())
+            sub.addItem(choiceItem(
+                title: config.model,
+                value: config.model,
+                checked: true,
+                action: #selector(selectModelChoice(_:))
+            ))
+        }
+        parent.submenu = sub
+        return parent
+    }
+
+    private func effortMenuItem() -> NSMenuItem {
+        let parent = NSMenuItem(title: strings.thinkingLevelLabel, action: nil, keyEquivalent: "")
+        let sub = NSMenu()
+        let catalog = currentCatalog()
+        let levels = catalog.model(slug: config.resolvedModelSlug(catalog: catalog))?.effortLevels ?? AppConfig.validThinkingLevels
+        let autoLevel = AppConfig.autoEffort(levels: levels)
+        sub.addItem(choiceItem(
+            title: strings.choiceDefaultWith(autoLevel.isEmpty ? "—" : autoLevel),
+            value: AppConfig.autoSelection,
+            checked: config.isThinkingAuto,
+            action: #selector(selectEffortChoice(_:))
+        ))
+        if !levels.isEmpty { sub.addItem(.separator()) }
+        for level in levels {
+            sub.addItem(choiceItem(
+                title: level,
+                value: level,
+                checked: !config.isThinkingAuto && config.thinkingLevel == level,
+                action: #selector(selectEffortChoice(_:))
+            ))
+        }
+        parent.submenu = sub
+        return parent
+    }
+
+    @objc private func selectProviderChoice(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? String, value != config.provider else { return }
+        var next = config
+        next.provider = value
+        // A new provider invalidates any model/effort pinned for the old one — reset both to
+        // auto so the switch always yields a valid, sensible model + effort.
+        next.model = AppConfig.autoSelection
+        next.thinkingLevel = AppConfig.autoSelection
+        saveAndApply(config: next)
+    }
+
+    @objc private func selectModelChoice(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? String, value != config.model else { return }
+        var next = config
+        next.model = value
+        // Keep effort valid for the new model: drop a pinned level it doesn't offer back to auto.
+        if !next.isThinkingAuto {
+            let catalog = ProviderRegistry.catalog(kind: next.resolvedProviderKind).load()
+            let levels = catalog.model(slug: next.resolvedModelSlug(catalog: catalog))?.effortLevels ?? AppConfig.validThinkingLevels
+            if !levels.contains(next.thinkingLevel) { next.thinkingLevel = AppConfig.autoSelection }
+        }
+        saveAndApply(config: next)
+    }
+
+    @objc private func selectEffortChoice(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? String, value != config.thinkingLevel else { return }
+        var next = config
+        next.thinkingLevel = value
+        saveAndApply(config: next)
     }
 
     private func submenu(for suggestion: Suggestion) -> NSMenu {
@@ -564,6 +715,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     @objc private func reviewSuggestionWithClaude(_ sender: NSMenuItem) {
         guard let payload = sender.representedObject as? SuggestionMenuPayload else { return }
         let providerKind = config.resolvedProviderKind
+        let effective = effectiveConfig()   // concrete model/effort for "Default" selections
         // Resolve the selected provider's CLI; without it there is no review session.
         let executableURL = providerKind == .codex
             ? CodexCLIClient.defaultExecutableURL()
@@ -587,16 +739,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
                 script = TerminalScriptBuilder.codexReviewScript(
                     promptFilePath: promptURL.path,
                     codexExecutablePath: executableURL.path,
-                    model: config.model,
-                    effort: config.thinkingLevel,
-                    fastMode: config.fastMode,
+                    model: effective.model,
+                    effort: effective.thinkingLevel,
+                    fastMode: effective.fastMode,
                     languageIdentifier: config.resolvedOutputLanguageIdentifier()
                 )
             case .claude:
                 script = TerminalScriptBuilder.claudeReviewScript(
                     promptFilePath: promptURL.path,
                     claudeExecutablePath: executableURL.path,
-                    model: config.model,
+                    model: effective.model,
                     languageIdentifier: config.resolvedOutputLanguageIdentifier()
                 )
             }
@@ -643,16 +795,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         defer { runningCommands.remove(command) }
 
         let language = config.resolvedOutputLanguageIdentifier()
+        let effective = effectiveConfig()   // concrete model/effort for "Default" selections
 
         // 1. LLM risk check. Any CLI failure maps to .unknown → still confirm.
         let verdict: CommandRiskVerdict
         do {
             verdict = try await riskAssessor.assess(
                 command: command,
-                provider: config.resolvedProviderKind,
-                model: config.model,
-                effort: config.thinkingLevel,
-                fastMode: config.fastMode,
+                provider: effective.resolvedProviderKind,
+                model: effective.model,
+                effort: effective.thinkingLevel,
+                fastMode: effective.fastMode,
                 languageIdentifier: language
             )
         } catch {

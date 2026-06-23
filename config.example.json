@@ -1,7 +1,7 @@
 {
-  "provider": "claude",
-  "model": "sonnet",
-  "thinkingLevel": "max",
+  "provider": "default",
+  "model": "default",
+  "thinkingLevel": "default",
   "fastMode": false,
   "monitorSeconds": 30,
   "intervalSeconds": 3600,

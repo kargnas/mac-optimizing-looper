@@ -77,7 +77,7 @@ Run the **bundle**, not the bare binary — `UNUserNotificationCenter` needs a r
 
 ## Make it yours
 
-Pick **Provider / Model / Speed / Fast Mode** in Settings — models and reasoning levels are read live from each CLI. Default backend is the `claude` CLI; `codex` is also supported (one schema-constrained pass, no separate format step). The UI is in 10 languages; the **Language** picker controls both the UI and what language Claude analyzes in.
+Switch **Provider / Model / Effort** right from the menu bar — no need to open Settings. Each has a **Default** option that auto-picks for you: Claude as the backend, a balanced model, and one notch below the top reasoning level. A fresh install just works, and you can still pin an exact value any time. While an analysis runs, the menu bar shows which backend is working. `claude` is the default backend; `codex` is also supported (one schema-constrained pass, no separate format step). Settings holds the rest — Fast Mode, analysis interval, terminal app, and **Language** (which sets both the UI and the language the model analyzes in). Models and reasoning levels are read live from each CLI.
 
 <p align="center"><img src="docs/settings.png" alt="Mac Optimizing Looper Settings — provider, model, language, interval" width="520"></p>
 

@@ -17,6 +17,8 @@
 "menu.settings" = "设置…";
 "menu.checkForUpdates" = "检查更新…";
 "menu.quit" = "退出";
+"menu.choiceDefault" = "默认";
+"menu.choiceDefaultWith" = "默认 (%@)";
 
 /* 建议行操作 */
 "action.showInTerminal" = "在终端中显示命令";

@@ -117,7 +117,8 @@ final class MultiProviderTests: XCTestCase {
 
     func testConfigBackwardCompatDefaultsToClaude() throws {
         let config = try AppConfig.load(environment: [:], fileContents: Data("{\"model\":\"sonnet\"}".utf8))
-        XCTAssertEqual(config.provider, "claude")
+        // A config without an explicit provider is "auto" and resolves to claude.
+        XCTAssertTrue(config.isProviderAuto)
         XCTAssertEqual(config.resolvedProviderKind, .claude)
         XCTAssertFalse(config.fastMode)
     }

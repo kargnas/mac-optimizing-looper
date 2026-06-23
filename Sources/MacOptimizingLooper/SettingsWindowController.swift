@@ -75,7 +75,11 @@ final class SettingsWindowController: NSWindowController {
 
     func configure(with config: AppConfig) {
         currentConfig = config
-        selectProvider(config.resolvedProviderKind)
+        if config.isProviderAuto {
+            selectPopup(providerPopup, value: AppConfig.autoSelection)
+        } else {
+            selectProvider(config.resolvedProviderKind)
+        }
         reloadCatalog()
         populateModels(selectingModel: config.model)
         populateEfforts(selecting: config.thinkingLevel)
@@ -93,6 +97,9 @@ final class SettingsWindowController: NSWindowController {
         guard let contentView = window?.contentView else { return }
 
         providerPopup.removeAllItems()
+        // "Default" (auto) first; its localized title is applied in applyLocalizedText().
+        providerPopup.addItem(withTitle: "")
+        providerPopup.lastItem?.representedObject = AppConfig.autoSelection
         for kind in LLMProviderKind.allCases {
             providerPopup.addItem(withTitle: kind.displayName)
             providerPopup.lastItem?.representedObject = kind.rawValue
@@ -241,8 +248,15 @@ final class SettingsWindowController: NSWindowController {
     }
 
     private func selectProvider(_ kind: LLMProviderKind) {
-        let index = LLMProviderKind.allCases.firstIndex(of: kind) ?? 0
-        providerPopup.selectItem(at: index)
+        selectPopup(providerPopup, value: kind.rawValue)
+    }
+
+    /// Selects the popup entry whose representedObject equals `value` (no-op if absent).
+    /// Used so selection survives the extra "Default" row without index arithmetic.
+    private func selectPopup(_ popup: NSPopUpButton, value: String) {
+        if let index = popup.itemArray.firstIndex(where: { ($0.representedObject as? String) == value }) {
+            popup.selectItem(at: index)
+        }
     }
 
     private func reloadCatalog() {
@@ -254,6 +268,9 @@ final class SettingsWindowController: NSWindowController {
     private func populateModels(selectingModel slug: String) {
         let text = AppStrings(languageIdentifier: currentConfig.resolvedOutputLanguageIdentifier())
         modelPopup.removeAllItems()
+        // "Default" (auto) first, then the catalog, then "Custom…".
+        modelPopup.addItem(withTitle: text.choiceDefault)
+        modelPopup.lastItem?.representedObject = AppConfig.autoSelection
         for model in catalog.models {
             modelPopup.addItem(withTitle: model.displayName)
             modelPopup.lastItem?.representedObject = model.slug
@@ -262,8 +279,11 @@ final class SettingsWindowController: NSWindowController {
         modelPopup.lastItem?.representedObject = Self.customModelSentinel
 
         let trimmed = slug.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let index = catalog.models.firstIndex(where: { $0.slug == trimmed }) {
-            modelPopup.selectItem(at: index)
+        if trimmed.lowercased() == AppConfig.autoSelection || trimmed.isEmpty {
+            selectPopup(modelPopup, value: AppConfig.autoSelection)
+            modelCustomField.stringValue = ""
+        } else if catalog.models.contains(where: { $0.slug == trimmed }) {
+            selectPopup(modelPopup, value: trimmed)
             modelCustomField.stringValue = ""
         } else {
             modelPopup.selectItem(at: modelPopup.numberOfItems - 1)   // Custom…
@@ -282,6 +302,20 @@ final class SettingsWindowController: NSWindowController {
         return catalog.model(slug: slug)
     }
 
+    private var isAutoModelSelected: Bool {
+        (modelPopup.selectedItem?.representedObject as? String) == AppConfig.autoSelection
+    }
+
+    /// The model whose reasoning levels the effort popup should list: an explicit catalog
+    /// pick, or — when "Default" model is selected — the provider's auto-resolved model.
+    private var effortReferenceModel: ProviderModel? {
+        if let model = selectedCatalogModel { return model }
+        if isAutoModelSelected {
+            return catalog.model(slug: AppConfig.autoModelSlug(kind: selectedProviderKind, catalog: catalog))
+        }
+        return nil
+    }
+
     private func updateCustomFieldVisibility() {
         modelCustomRow?.isHidden = !isCustomModelSelected
     }
@@ -289,17 +323,13 @@ final class SettingsWindowController: NSWindowController {
     /// Fills the effort popup from the selected model's reasoning levels (or a provider
     /// fallback for a custom model), selecting `level` if present, else the model default.
     private func populateEfforts(selecting level: String) {
-        let efforts: [ProviderEffort]
-        let defaultLevel: String
-        if let model = selectedCatalogModel {
-            efforts = model.efforts
-            defaultLevel = model.defaultEffort
-        } else {
-            efforts = fallbackEfforts()
-            defaultLevel = efforts.first?.level ?? ""
-        }
+        let text = AppStrings(languageIdentifier: currentConfig.resolvedOutputLanguageIdentifier())
+        let efforts: [ProviderEffort] = effortReferenceModel?.efforts ?? fallbackEfforts()
 
         thinkingPopup.removeAllItems()
+        // "Default" (auto = one step below the model's top level) first.
+        thinkingPopup.addItem(withTitle: text.choiceDefault)
+        thinkingPopup.lastItem?.representedObject = AppConfig.autoSelection
         for effort in efforts {
             thinkingPopup.addItem(withTitle: effort.level)
             thinkingPopup.lastItem?.representedObject = effort.level
@@ -307,13 +337,13 @@ final class SettingsWindowController: NSWindowController {
                 thinkingPopup.lastItem?.toolTip = effort.description
             }
         }
-        thinkingPopup.isEnabled = !efforts.isEmpty
+        thinkingPopup.isEnabled = true
 
-        let wanted = level.trimmingCharacters(in: .whitespacesAndNewlines)
+        let wanted = level.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if efforts.contains(where: { $0.level == wanted }) {
-            thinkingPopup.selectItem(withTitle: wanted)
-        } else if !defaultLevel.isEmpty {
-            thinkingPopup.selectItem(withTitle: defaultLevel)
+            selectPopup(thinkingPopup, value: wanted)
+        } else {
+            selectPopup(thinkingPopup, value: AppConfig.autoSelection)
         }
     }
 
@@ -342,19 +372,20 @@ final class SettingsWindowController: NSWindowController {
     }
 
     @objc private func providerChanged(_ sender: NSPopUpButton) {
-        // Preserve a custom-typed model across the switch; otherwise default to the new
-        // provider's first catalog model (not an empty "Custom…").
+        // Preserve a custom-typed model across the switch; otherwise reset model + effort to
+        // "Default" (auto) so they are valid for the new provider.
         let keepCustom = isCustomModelSelected ? modelCustomField.stringValue : nil
         reloadCatalog()
-        let preferredModel = keepCustom ?? (catalog.models.first?.slug ?? "")
-        populateModels(selectingModel: preferredModel)
-        populateEfforts(selecting: thinkingPopup.titleOfSelectedItem ?? "")
+        populateModels(selectingModel: keepCustom ?? AppConfig.autoSelection)
+        populateEfforts(selecting: AppConfig.autoSelection)
         updateFastMode(checked: fastModeCheckbox.state == .on)
     }
 
     @objc private func modelChanged(_ sender: NSPopUpButton) {
         updateCustomFieldVisibility()
-        populateEfforts(selecting: thinkingPopup.titleOfSelectedItem ?? "")
+        // Preserve the current effort selection (sentinel or level) across the model change.
+        let currentEffort = (thinkingPopup.selectedItem?.representedObject as? String) ?? AppConfig.autoSelection
+        populateEfforts(selecting: currentEffort)
         updateFastMode(checked: fastModeCheckbox.state == .on)
     }
 
@@ -456,6 +487,11 @@ final class SettingsWindowController: NSWindowController {
         languageLabel.stringValue = text.languageLabel
         // The "System default" entry (item 0) is the only popup title that localizes.
         languagePopup.item(at: 0)?.title = text.systemDefaultLanguage
+        // The provider popup's "Default" (auto) entry localizes here; the model/effort popups
+        // set their own "Default" titles each time they repopulate.
+        if let autoIndex = providerPopup.itemArray.firstIndex(where: { ($0.representedObject as? String) == AppConfig.autoSelection }) {
+            providerPopup.item(at: autoIndex)?.title = text.choiceDefault
+        }
         terminalLabel.stringValue = text.terminalAppLabel
         if terminalApplications.isEmpty, terminalPopup.numberOfItems > 0 {
             terminalPopup.item(at: 0)?.title = text.noTerminalAppsDetected
@@ -479,9 +515,11 @@ final class SettingsWindowController: NSWindowController {
         }
 
         var newConfig = currentConfig
-        newConfig.provider = selectedProviderKind.rawValue
-        newConfig.model = chosenModel.isEmpty ? AppConfig.defaults(environment: [:]).model : chosenModel
-        newConfig.thinkingLevel = thinkingPopup.titleOfSelectedItem ?? currentConfig.thinkingLevel
+        // Persist the raw popup selections so "Default" is stored as the auto sentinel (it
+        // resolves at runtime), not baked into a concrete provider/model/effort.
+        newConfig.provider = (providerPopup.selectedItem?.representedObject as? String) ?? LLMProviderKind.claude.rawValue
+        newConfig.model = chosenModel.isEmpty ? AppConfig.autoSelection : chosenModel
+        newConfig.thinkingLevel = (thinkingPopup.selectedItem?.representedObject as? String) ?? AppConfig.autoSelection
         // Only persist Fast Mode when the control is actually enabled (model supports it).
         newConfig.fastMode = fastModeCheckbox.isEnabled && fastModeCheckbox.state == .on
         newConfig.monitorSeconds = selectedMonitorSeconds()
