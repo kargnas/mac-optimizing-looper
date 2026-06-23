@@ -1,4 +1,4 @@
-# 🔥 Your Mac is slow. Claude finds the culprit.
+# 🔥 Your Mac is slow. AI Agent finds the culprit.
 
 **English** · [한국어](README-ko.md) · [简体中文](README-zh-Hans.md) · [繁體中文](README-zh-Hant.md) · [日本語](README-ja.md) · [Español](README-es.md) · [Deutsch](README-de.md) · [Français](README-fr.md) · [Português](README-pt-BR.md) · [Русский](README-ru.md)
 
