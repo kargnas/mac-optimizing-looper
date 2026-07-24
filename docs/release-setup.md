@@ -1,11 +1,11 @@
 # Release setup (one-time)
 
 The CI is scaffolded but **inert** until these secrets exist. Once they do, every
-push to `main` (touching `Sources/`, `script/`, or `Package.swift`) auto-cuts a
-signed, notarized DMG release and bumps the Homebrew cask — no further manual work.
+push to `main` auto-cuts a signed, notarized DMG release and bumps the Homebrew
+cask — no further manual work.
 
-Pipeline: `auto-release.yml` (version bump) → `build-release.yml` (build → Developer
-ID sign → notarize → DMG → GitHub Release → `update-tap` writes the cask).
+Pipeline: `auto-release.yml` (patch bump → build → Developer ID sign → notarize →
+DMG → GitHub Release → `update-tap` writes the cask).
 
 ## Required repo secrets
 
@@ -30,8 +30,12 @@ certificate type) to sign + notarize.
 After the secrets are in:
 
 ```bash
-# patch bump happens automatically on the next push to main, OR cut one now:
-gh workflow run auto-release.yml -f bump=minor    # → v0.1.0
+# patch bump happens automatically on the next push to main, or by default here:
+gh workflow run auto-release.yml
+
+# choose a larger bump only when needed:
+gh workflow run auto-release.yml -f bump=minor
+gh workflow run auto-release.yml -f bump=major
 ```
 
 `update-tap` **creates** `Casks/mac-optimizing-looper.rb` in the tap on the first run
@@ -48,7 +52,7 @@ The app embeds Sparkle and self-updates; `brew upgrade` is no longer the only pa
   "Check for Updates…" menu item. `script/build-app.zsh` embeds `Sparkle.framework`,
   writes `SUFeedURL` + `SUPublicEDKey` into `Info.plist`, and signs the framework's
   nested helpers inside-out.
-- **CI side**: `build-release.yml` builds with `SPARKLE_AUTO=1` (enables background
+- **CI side**: `auto-release.yml` builds with `SPARKLE_AUTO=1` (enables background
   checks), EdDSA-signs the notarized DMG with `SPARKLE_PRIVATE_KEY`, generates
   `appcast.xml`, and uploads it alongside the DMG.
 - **Feed**: `SUFeedURL` points at

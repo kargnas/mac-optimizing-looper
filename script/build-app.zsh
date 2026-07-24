@@ -2,7 +2,7 @@
 # Release packager — builds a distributable dist/MacOptimizingLooper.app.
 #
 # Local default = ad-hoc sign ("-"): fine for testing on THIS Mac, but Gatekeeper
-# blocks it on any other Mac. CI (.github/workflows/build-release.yml) sets
+# blocks it on any other Mac. CI (.github/workflows/auto-release.yml) sets
 #   CODE_SIGN_IDENTITY="Developer ID Application"  HARDENED_RUNTIME=1
 # to produce a notarizable bundle. Kept separate from build_and_run.sh because
 # that script targets the fast local dev loop (debug build, no version stamping).

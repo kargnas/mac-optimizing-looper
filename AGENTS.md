@@ -43,10 +43,11 @@ periodically analyzes system load with Claude and surfaces prioritized advice.
 build + version-stamped `Info.plist`). Local default is ad-hoc sign; CI sets
 `CODE_SIGN_IDENTITY="Developer ID Application"` + `HARDENED_RUNTIME=1` for a
 notarizable bundle. Keep it separate from `build_and_run.sh` (that is the fast
-debug dev loop). `.github/workflows/auto-release.yml` bumps the patch version on
-pushes to `main` and dispatches `build-release.yml` (build → sign → notarize → DMG
-→ GitHub Release → `update-tap` writes the `kargnas/homebrew-tap` cask). The
-pipeline is **inert until signing secrets exist** — see `docs/release-setup.md`.
+debug dev loop). `.github/workflows/auto-release.yml` owns the whole release: every
+push to `main` bumps the patch version, then builds, signs, notarizes, creates the
+DMG and GitHub Release, and updates the `kargnas/homebrew-tap` cask. Manual runs can
+choose a minor or major bump. The pipeline is **inert until signing secrets exist**
+— see `docs/release-setup.md`.
 Sparkle in-app auto-update is wired (release builds set `SPARKLE_AUTO=1`; the feed is
 the `latest` release's `appcast.xml`). The EdDSA key is one-time — never regenerate it.
 

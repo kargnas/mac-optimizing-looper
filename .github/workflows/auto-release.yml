@@ -1,17 +1,16 @@
-# Auto release: a code push to main waits 10 minutes (a newer push restarts the
-# timer via concurrency), bumps the patch version from the latest tag, then
-# dispatches build-release.yml. Manual dispatch allows minor/major bumps and
-# skips the wait. Commit with [skip release] to opt out.
+# One release pipeline: every main push defaults to patch +1; manual runs can
+# choose patch, minor, or major. Pushes wait 10 minutes so a newer push can
+# replace the pending release before the expensive macOS build starts.
+#
+# Inert until these repo secrets exist (see docs/release-setup.md):
+#   BUILD_CERTIFICATE_BASE64, P12_PASSWORD, KEYCHAIN_PASSWORD,
+#   APPLE_ID, APPLE_APP_PASSWORD, APPLE_TEAM_ID, TAP_SSH_KEY
+#   SPARKLE_PRIVATE_KEY (already set — EdDSA key for signing the appcast)
 name: Auto Release
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'Sources/**'
-      - 'script/**'
-      - 'Package.swift'
-      - 'Package.resolved'
   workflow_dispatch:
     inputs:
       bump:
@@ -24,23 +23,22 @@ on:
           - major
         default: patch
 
-concurrency:
-  group: auto-release
-  cancel-in-progress: true
-
 permissions:
-  contents: read
-  actions: write
+  contents: write
 
 jobs:
-  dispatch-release:
-    runs-on: ubuntu-latest
+  # Keep the debounce on a cheap Linux runner. A new push cancels only this
+  # pending gate, never a signing/notarization job already in progress.
+  preflight:
     if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: auto-release-delay
+      cancel-in-progress: true
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
     steps:
-      # Skip cleanly (green) until signing secrets exist — no point bumping a
-      # version for a release job that would itself skip. See docs/release-setup.md.
-      - name: Check signing secrets present
-        id: gate
+      - id: check
         env:
           CERT: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
         run: |
@@ -52,53 +50,244 @@ jobs:
           fi
 
       - name: Wait 10 minutes for more commits
-        if: steps.gate.outputs.ready == 'true' && github.event_name == 'push'
+        if: steps.check.outputs.ready == 'true' && github.event_name == 'push'
         run: sleep 600
 
+  release:
+    needs: preflight
+    if: needs.preflight.outputs.ready == 'true'
+    # Match ci.yml's runner: the app's strict-concurrency code compiles on the
+    # macos-latest (Swift 6) toolchain but not the older macos-14 (Swift 5.10) one.
+    runs-on: macos-latest
+    concurrency:
+      group: release-build
+      cancel-in-progress: false
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
       - uses: actions/checkout@v4
-        if: steps.gate.outputs.ready == 'true'
         with:
           fetch-depth: 0
 
-      - name: Compute next version
-        id: version
-        if: steps.gate.outputs.ready == 'true'
+      - name: Resolve version
+        id: resolve
         run: |
-          # Take the highest v* tag repo-wide; a release during the sleep window
-          # makes reachability-based git describe undercount.
+          # Resolve after acquiring the serialized release slot, so queued runs
+          # always see the tag created by the previous release.
           LATEST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
           LATEST_TAG="${LATEST_TAG:-v0.0.0}"
-          echo "Latest tag: $LATEST_TAG"
+          CURRENT_VERSION="${LATEST_TAG#v}"
 
-          # HEAD already tagged -> nothing to release.
-          if git describe --tags --exact-match --match 'v*' HEAD >/dev/null 2>&1; then
-            echo "HEAD is already tagged; skipping release."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+          if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Latest tag $LATEST_TAG is not a stable semantic version." >&2
+            exit 1
           fi
 
-          VERSION="${LATEST_TAG#v}"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-          BUMP="${{ github.event_name == 'workflow_dispatch' && inputs.bump || 'patch' }}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          BUMP="patch"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            BUMP="${{ inputs.bump }}"
+          fi
 
           case "$BUMP" in
             major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
             minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
             patch) PATCH=$((PATCH + 1)) ;;
+            *) echo "Unsupported version bump: $BUMP" >&2; exit 1 ;;
           esac
 
-          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
-          echo "New version: $NEW_VERSION"
-          echo "skip=false" >> "$GITHUB_OUTPUT"
-          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "Latest tag: $LATEST_TAG"
+          echo "Version bump: $BUMP"
+          echo "New version: $VERSION"
+          {
+            echo "VERSION=$VERSION"
+            echo "APP_VERSION=${VERSION#v}"
+            echo "DMG_NAME=MacOptimizingLooper-${VERSION}.dmg"
+          } >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Dispatch build-release workflow
-        if: steps.gate.outputs.ready == 'true' && steps.version.outputs.skip == 'false'
+      - name: Import Developer ID certificate
         env:
-          GH_TOKEN: ${{ github.token }}
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          gh workflow run build-release.yml \
-            --repo "${{ github.repository }}" \
-            --ref main \
-            -f version="${{ steps.version.outputs.new_version }}"
-          echo "Dispatched build-release.yml with version ${{ steps.version.outputs.new_version }}"
+          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+      - name: Build, bundle and sign app
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+          HARDENED_RUNTIME: '1'
+          CODE_SIGN_IDENTITY: 'Developer ID Application'
+          SPARKLE_AUTO: '1'   # release builds get background auto-update enabled
+        run: ./script/build-app.zsh
+
+      - name: Notarize app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ditto -c -k --keepParent dist/MacOptimizingLooper.app "$RUNNER_TEMP/app-notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/app-notarize.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 30m
+          xcrun stapler staple dist/MacOptimizingLooper.app
+
+      - name: Create DMG
+        run: |
+          # Stage only the .app so build artifacts never leak into the DMG.
+          DMG_STAGING="$RUNNER_TEMP/dmg_staging"
+          mkdir -p "$DMG_STAGING"
+          cp -R dist/MacOptimizingLooper.app "$DMG_STAGING/"
+          ln -s /Applications "$DMG_STAGING/Applications"
+          hdiutil create -volname "MacOptimizingLooper" \
+            -srcfolder "$DMG_STAGING" -ov -format UDZO "$DMG_NAME"
+          codesign --force --sign "Developer ID Application" "$DMG_NAME"
+          rm -rf "$DMG_STAGING"
+
+      - name: Notarize DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool submit "$DMG_NAME" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 30m
+          xcrun stapler staple "$DMG_NAME"
+
+      - name: Sparkle sign + appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          # Fetch the Sparkle CLI tools (sign_update) matching the embedded framework.
+          curl -fsSL -o sparkle.tar.xz \
+            https://github.com/sparkle-project/Sparkle/releases/download/2.8.1/Sparkle-2.8.1.tar.xz
+          mkdir -p sparkle && tar -xf sparkle.tar.xz -C sparkle
+          chmod +x sparkle/bin/sign_update
+
+          # EdDSA-sign the notarized DMG. sign_update prints:
+          #   sparkle:edSignature="..." length="..."
+          printf '%s\n' "$SPARKLE_PRIVATE_KEY" > sparkle_ed_key
+          SIG_LINE="$(sparkle/bin/sign_update "$DMG_NAME" --ed-key-file sparkle_ed_key)"
+          rm -f sparkle_ed_key
+
+          DL_URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}/${DMG_NAME}"
+          # sparkle:version compares against the installed CFBundleVersion (= APP_VERSION),
+          # so it must be the bare, monotonically increasing version (no leading "v").
+          cat > appcast.xml <<XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+            <channel>
+              <title>Mac Optimizing Looper</title>
+              <link>https://github.com/${{ github.repository }}/releases/latest/download/appcast.xml</link>
+              <item>
+                <title>${APP_VERSION}</title>
+                <sparkle:version>${APP_VERSION}</sparkle:version>
+                <sparkle:shortVersionString>${APP_VERSION}</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+                <pubDate>$(date -R)</pubDate>
+                <enclosure url="${DL_URL}" type="application/octet-stream" ${SIG_LINE}/>
+              </item>
+            </channel>
+          </rss>
+          XML
+
+      - name: Cleanup keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/app-signing.keychain-db" 2>/dev/null || true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          # appcast.xml ships in every release; SUFeedURL points at the `latest`
+          # release alias so Sparkle always fetches the newest one.
+          files: |
+            MacOptimizingLooper-*.dmg
+            appcast.xml
+          generate_release_notes: true
+
+  # Create or bump the Homebrew cask in kargnas/homebrew-tap so
+  # `brew install --cask kargnas/tap/mac-optimizing-looper` resolves to this DMG.
+  # Needs a write deploy key (TAP_SSH_KEY); GITHUB_TOKEN cannot push cross-repo.
+  update-tap:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create/update Homebrew cask
+        env:
+          VERSION: ${{ needs.release.outputs.version }}
+          TAP_SSH_KEY: ${{ secrets.TAP_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          APP_VERSION="${VERSION#v}"
+
+          curl -fsSL -o app.dmg \
+            "https://github.com/kargnas/mac-optimizing-looper/releases/download/${VERSION}/MacOptimizingLooper-${VERSION}.dmg"
+          SHA256=$(sha256sum app.dmg | cut -d' ' -f1)
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$TAP_SSH_KEY" > ~/.ssh/tap_key
+          chmod 600 ~/.ssh/tap_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap_key -o IdentitiesOnly=yes"
+
+          git clone --depth 1 git@github.com:kargnas/homebrew-tap.git tap
+
+          # Generate the whole cask each release (create-or-replace) so the first
+          # release bootstraps it and later releases keep version+sha in sync.
+          mkdir -p tap/Casks
+          cat > tap/Casks/mac-optimizing-looper.rb <<CASK
+          cask "mac-optimizing-looper" do
+            version "${APP_VERSION}"
+            sha256 "${SHA256}"
+
+            url "https://github.com/kargnas/mac-optimizing-looper/releases/download/v#{version}/MacOptimizingLooper-v#{version}.dmg"
+            name "Mac Optimizing Looper"
+            desc "Menu-bar agent loop that asks Claude what's overloading your Mac"
+            homepage "https://github.com/kargnas/mac-optimizing-looper"
+
+            livecheck do
+              url :url
+              strategy :github_latest
+            end
+
+            depends_on macos: :ventura
+
+            app "MacOptimizingLooper.app"
+
+            zap trash: [
+              "~/.config/mac-optimizing-looper",
+              "~/Library/Caches/as.kargn.MacOptimizingLooper",
+              "~/Library/HTTPStorages/as.kargn.MacOptimizingLooper",
+              "~/Library/Preferences/as.kargn.MacOptimizingLooper.plist",
+            ]
+          end
+          CASK
+
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/mac-optimizing-looper.rb
+          # A re-run of an already-published version yields no diff; skip rather than fail.
+          git diff --cached --quiet || {
+            git commit -m "mac-optimizing-looper ${APP_VERSION}"
+            git push origin HEAD:main
+          }
