@@ -1,6 +1,6 @@
 ---
 name: mac-optimizer
-description: Diagnoses why a macOS system is slow by MEASURING which layer is the bottleneck (CPU thread / GPU / memory pressure / WindowServer compositor), flags a CRITICAL must-act-now state, then drills generically to the responsible process and recommends durable fixes. Works on any Mac with no hardcoded app list. Triggers on slow Mac, laggy, why is it slow, stuttering, slow window dragging, lag during screen share, check Mac performance, optimize my Mac, system health check.
+description: This skill should be used when diagnosing a slow or laggy macOS system by measuring the bound layer (CPU, GPU, memory pressure, or WindowServer compositor), confirming sustained causes, and recommending durable fixes without a hardcoded app list. Trigger phrases include "why is my Mac slow", "stuttering", "slow window dragging", "mouse movement lag", "Google Chrome new-tab lag", "typing lag", "screen-share lag", "check Mac performance", "optimize my Mac", and "system health check".
 user-invocable: true
 allowed-tools: Bash(bash *), Bash(uv run *)
 metadata:
@@ -57,7 +57,7 @@ when ANY row below is true:
 | Condition | Run `--monitor 30`? |
 |---|---|
 | `SYSTEM STATE` is CRITICAL or STRAINED | MUST |
-| User reports lag / stutter / "slow sometimes" / drag or screen-share lag | MUST (run it *while reproducing* if possible) |
+| User reports lag / stutter / "slow sometimes" / mouse movement lag / Google Chrome tab-open lag / typing lag / drag or screen-share lag | MUST (run it *while reproducing* if possible) |
 | Any process or the compositor looks bound in BOTTLENECK LAYERS | MUST |
 | HEALTHY and the user only wanted a quick audit | MAY skip |
 
@@ -67,9 +67,34 @@ bash "$HOME/.claude/skills/mac-optimizer/mac-optimize.sh" --monitor 30
 
 This samples for 30s and tags each process `SUSTAINED` (real culprit) /
 `intermittent` / `transient-blip` (noise), plus the load trend and whether swap
-thrashed during the window. MUST treat only `SUSTAINED` (or repeated
-`intermittent`) processes as the cause — a `transient-blip` MUST NOT be reported as
-the culprit even if its one-shot %CPU was high.
+thrashed during the window. The monitor measures only process CPU persistence,
+load-average trend, and swap-out activity. It does not measure input latency,
+tab-open latency, the frontmost app, GPU activity, disk latency, thermal state, or
+per-action timestamps. Do not claim correlation with those signals unless a separate
+probe captured them. MUST treat only `SUSTAINED` (or repeated `intermittent`)
+processes as confirmed system contributors — a `transient-blip` MUST NOT be
+reported as the culprit even if its one-shot %CPU was high.
+
+When an interaction symptom is reported, run the monitor while reproducing the
+exact action and record that action in the report:
+
+- **Mouse movement lag**: move the pointer continuously across windows during the
+  sample; correlate only with WindowServer/process CPU, load trend, and swap activity.
+  Use snapshot GPU data as a baseline, not as action-time proof.
+- **Google Chrome tab-open lag**: open several new tabs in succession during the
+  sample; correlate only with repeated browser-process CPU entries, load trend, and
+  swap activity. Browser bloat or one-shot GPU/disk metrics alone do not prove
+  tab-open latency.
+- **Typing lag**: type continuously in the affected app during the sample; correlate
+  only with the surfaced app/WindowServer process CPU, load trend, and swap activity.
+  Do not claim focused-app or per-keystroke timing because the monitor does not record
+  frontmost-app state or input events.
+
+A repeated `intermittent` row is time-coincident evidence, not proof of causality,
+because the monitor has no per-action timestamps. If no process or layer is sustained
+or repeats during reproduction, state that the monitor captured no confirmed system
+contributor for that symptom; do not infer a culprit from the user's symptom or from
+a single one-shot spike.
 
 **VERIFY [S1]**: Snapshot output contains `=== DERIVED METRICS` and
 `=== BOTTLENECK LAYERS`. If the monitor was required, its output contains
@@ -210,14 +235,18 @@ one line naming the trigger + the single immediate command. Put this ABOVE the t
 | CPU | {load} on {cores} cores = {util}% | {icon} |
 | Disk | {free} GB free | {icon} |
 | Uptime | {d days h hours} | {icon} |
-| Confirmation | {"monitored Ns: <culprit> SUSTAINED" or "snapshot only (healthy quick audit)"} | {icon} |
+| Reproduction | {mouse movement / Google Chrome new-tab / typing / none} | {performed / not performed / inconclusive} |
+| Confirmation | {"monitored Ns during {reproduction}: <culprit> SUSTAINED" or "monitored Ns during {reproduction}: no confirmed system contributor" or "interaction probe inconclusive (monitor has no action timestamps)" or "snapshot only (healthy quick audit)"} | {icon} |
 
 {If pressure level is 1: one sentence stating memory is NOT the cause despite any large "used"/low "free", because pressure is normal and swap delta is 0.}
 
 ### Bound layer & responsible process
 {What the measurement shows is bound, and the specific process the live data
 named (from S3/S4), CONFIRMED by the 30s monitor (state it was SUSTAINED, not a
-blip) — with the drilldown method used, not a guess.}
+blip) — with the drilldown method used, not a guess. If no process or layer was
+confirmed during reproduction, state that explicitly and do not name a responsible
+process. If action timing was unavailable, state that the interaction probe was
+inconclusive.}
 
 ### Recommendations
 {🚨 MUST-RUN NOW — only if CRITICAL}
