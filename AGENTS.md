@@ -148,3 +148,66 @@ enforced by `GuardrailTests`.
   safety contract. Update it deliberately when the contract intentionally changes.
 - Bundle id prefix for any new bundles: keep `as.kargn.*` consistent with the
   existing app bundle.
+
+## Project structure
+
+```
+Sources/
+  MacOptimizingLooper/        # App layer (menu bar, NSApp, terminal launch)
+    main.swift                # entry point — AppDelegate lifecycle
+    AppDelegate.swift         # menu, loops, notifications, command actions
+    AdvisorLoop.swift         # periodic analysis tick
+    SettingsWindowController.swift
+    TerminalLauncher.swift    # single entry point for opening terminals
+    TerminalAppCatalog.swift
+    CommandResultWindowController.swift
+  MacOptimizingLooperCore/    # Headless library (fully unit-tested)
+    Models.swift              # LoadMetrics, Suggestion, AdviceResponse
+    Config.swift              # AppConfig + JSON load
+    MetricsCollector.swift    # CPU/GPU/memory thread metrics
+    LoadAnalyzer.swift        # bottleneck classification
+    AdviceProvider.swift      # routes analysis → LLMClient
+    PromptBuilder.swift       # advice prompt + JSON schema
+    LLMClient.swift / LLMProvider.swift   # provider abstraction
+    ClaudeCLIClient.swift / ClaudeModelCatalog.swift
+    CodexCLIClient.swift / CodexModelCatalog.swift
+    CommandExecutor.swift     # the ONE execution path (background)
+    CommandRiskAssessor.swift # claude -p risk gate
+    AdviceFormatter.swift
+    ResponseFormatterProvider.swift
+    TerminalScriptBuilder.swift
+    MacOptimizerScript.swift   # runs bundled mac-optimize.sh
+    AppStrings.swift           # i18n entry (forced-locale sub-bundle)
+    Resources/<locale>.lproj/  # 10-language Localizable.strings
+Tests/MacOptimizingLooperCoreTests/   # 13 files incl. GuardrailTests
+script/
+  build_and_run.sh            # fast dev loop: build → bundle → ad-hoc sign → open -n
+  build-app.zsh               # release packager (version stamp, Sparkle embed)
+  mac-optimizing-looper-response-guide.sh
+  mac-optimizing-looper-format-json.sh
+.agents/skills/mac-optimizer/mac-optimize.sh   # bundled scan script source
+docs/                         # screenshots + release-setup + design specs
+```
+
+## VS Code / Cursor workflow
+
+`.vscode/` holds the one-click dev loop. Install recommended extensions first
+(`extensions.json` — sswg swift-lang, vadimcn.lldb, zhouronghua.swift-format,
+actboy168.tasks for the status-bar task button).
+
+- **Tasks** (`tasks.json`, no daemons):
+  - `🚀 Build & Run Bundle` — default build task; `script/build_and_run.sh run`
+    (debug build, bundle, ad-hoc sign, `open -n`). Prefer over the bare
+    executable so notifications + Sparkle are live.
+  - `🧪 Run Tests` — `swift test`.
+  - `📦 Build Release Bundle` — `script/build-app.zsh` (release + Sparkle embed).
+  - `📋 Stream Logs` — `log stream` filtered to the app process.
+  - `🗂️ Open Config Folder` — `~/.config/mac-optimizing-looper/`.
+- **Launch** (`launch.json`):
+  - `🐞 Debug MacOptimizingLooper` — swift-lang ext, debug config.
+  - `Debug MacOptimizingLooper (Release)` — release config.
+  - `🐞 Debug App Bundle (LLDB)` — launches the packaged bundle under LLDB
+    so breakpoints hit with the real bundle id live (notifications + Sparkle).
+  - `🚀 Full Dev Session` — compound; the 2 most-used runs may carry an emoji.
+- **Settings** (`settings.json`): swift-format on save (100-col ruler), excludes
+  `.build`/`dist`/`.codegraph`, enables the tasks status bar (`actboy168.tasks`).

@@ -1,0 +1,10 @@
+{
+  // Extensions recommended for Mac Optimizing Looper development.
+  // Install all via Command Palette → "Extensions: Show Recommended Extensions".
+  "recommendations": [
+    "actboy168.tasks",
+    "sswg.swift-language",
+    "vadimcn.vscode-lldb",
+    "zhouronghua.swift-format"
+  ]
+}

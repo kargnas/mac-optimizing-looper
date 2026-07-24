@@ -1,0 +1,48 @@
+{
+  // VS Code / Cursor launch configs for Mac Optimizing Looper.
+  // Two stack surfaces: (1) the Swift executable target (swift-lang ext),
+  // (2) the packaged .app bundle built by script/build_and_run.sh.
+  // The bundle matters: UNUserNotificationCenter + Sparkle need a real bundle
+  // proxy — a bare .build binary silently drops notifications and auto-update.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🐞 Debug MacOptimizingLooper",
+      "type": "swift",
+      "request": "launch",
+      "target": "MacOptimizingLooper",
+      "configuration": "debug",
+      "cwd": "${workspaceFolder}",
+      "args": [],
+      "preLaunchTask": "swift: Build Debug MacOptimizingLooper"
+    },
+    {
+      "name": "Debug MacOptimizingLooper (Release)",
+      "type": "swift",
+      "request": "launch",
+      "target": "MacOptimizingLooper",
+      "configuration": "release",
+      "cwd": "${workspaceFolder}",
+      "args": [],
+      "preLaunchTask": "swift: Build Release MacOptimizingLooper"
+    },
+    {
+      // Launch the packaged bundle under LLDB so breakpoints in
+      // AppDelegate / Core hit while the real bundle id is live.
+      // Pre-launch task builds + ad-hoc codesigns the bundle first.
+      "name": "🐞 Debug App Bundle (LLDB)",
+      "type": "lldb",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/dist/MacOptimizingLooper.app/Contents/MacOS/MacOptimizingLooper",
+      "preLaunchTask": "🚀 Build & Run Bundle"
+    }
+  ],
+  "compounds": [
+    {
+      // One-click full dev session: debug the executable + live unified logs.
+      "name": "🚀 Full Dev Session",
+      "configurations": ["🐞 Debug MacOptimizingLooper"]
+    }
+  ]
+}

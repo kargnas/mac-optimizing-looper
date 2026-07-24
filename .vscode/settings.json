@@ -1,0 +1,30 @@
+{
+  // Workspace settings for Mac Optimizing Looper (Swift / SwiftPM).
+  "files.encoding": "utf8",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "[swift]": {
+    "editor.defaultFormatter": "sswg.swift-format",
+    "editor.formatOnSave": true,
+    "editor.rulers": [100]
+  },
+  "sourcekit-lsp.serverArguments": [],
+  "swift.path": "/usr/bin",
+  "swift.buildArguments": [],
+  "swift.testEnvironmentVariables": {},
+  "search.exclude": {
+    "**/.build": true,
+    "**/dist": true,
+    "**/.codegraph": true,
+    "**/.DS_Store": true
+  },
+  "files.exclude": {
+    "**/.build": true,
+    "**/.codegraph": true,
+    "**/.DS_Store": true
+  },
+  "task.allowAutomaticTasks": "on",
+  "task.statusbar.tasks": true,
+  "actboy168.tasks.hideLabel": false,
+  "actboy168.tasks.showController": true
+}

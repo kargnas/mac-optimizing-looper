@@ -1,0 +1,50 @@
+{
+  // VS Code tasks for Mac Optimizing Looper.
+  // No daemons. Names prefixed with emoji per project convention; '...' when a choice follows.
+  // Run via Command Palette → "Tasks: Run Task", or the actboy168.tasks status-bar button.
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🚀 Build & Run Bundle...",
+      "type": "shell",
+      "command": "bash script/build_and_run.sh run",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "🧪 Run Tests",
+      "type": "shell",
+      "command": "swift test",
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "📦 Build Release Bundle...",
+      "type": "shell",
+      "command": "APP_VERSION=0.0.0 zsh script/build-app.zsh",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "📋 Stream Logs...",
+      "type": "shell",
+      "command": "/usr/bin/log stream --info --style compact --predicate 'process == \"MacOptimizingLooper\"'",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "close": false },
+      "isBackground": true
+    },
+    {
+      "label": "🗂️ Open Config Folder",
+      "type": "shell",
+      "command": "open ~/.config/mac-optimizing-looper || mkdir -p ~/.config/mac-optimizing-looper && open ~/.config/mac-optimizing-looper",
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent", "close": true }
+    }
+  ]
+}
