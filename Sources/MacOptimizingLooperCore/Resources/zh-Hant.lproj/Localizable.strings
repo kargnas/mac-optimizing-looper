@@ -54,7 +54,6 @@
 
 /* Claude 檢閱 / CLI 錯誤 */
 "claude.missing.title" = "找不到 Claude CLI";
-"claude.missing.message" = "找不到 claude 執行檔。";
 "claude.reviewOpenFailed" = "無法開啟 Claude 檢閱";
 "claude.reviewStarting" = "Claude 正在檢閱這則 Mac Optimizing Looper 建議…";
 "claude.notExecutable" = "設定路徑上的 Claude CLI 無法執行。";
@@ -62,6 +61,7 @@
 
 /* LLM 錯誤顯示 */
 "error.providerCLINotFound" = "找不到 %@ CLI";
+"error.invalidCLICommand" = "%@ 指令無效：%@";
 "error.invalidResponseFormat" = "回應格式無效";
 "error.decodingError" = "解碼錯誤：%@";
 "macOptimizer.failedPrefix" = "mac-optimizer 失敗";
@@ -71,6 +71,8 @@
 /* 設定視窗 */
 "settings.windowTitle" = "Mac Optimizing Looper 設定";
 "settings.providerLabel" = "供應商";
+"settings.claudeCommandLabel" = "Claude 指令";
+"settings.codexCommandLabel" = "Codex 指令";
 "settings.modelLabel" = "模型";
 "settings.thinkingLevelLabel" = "思考強度";
 "settings.fastModeLabel" = "快速模式";

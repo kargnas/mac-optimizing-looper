@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'USAGE'
-usage: mac-optimizing-looper-format-json.sh --analysis-file PATH [--language LOCALE] [--model MODEL] [--output-dir DIR] [--claude PATH]
+usage: mac-optimizing-looper-format-json.sh --analysis-file PATH [--language LOCALE] [--model MODEL] [--output-dir DIR] [--claude-command-arg ARG]...
 USAGE
 }
 
@@ -11,7 +11,7 @@ language="system"
 model="${CLAUDE_MODEL:-sonnet}"
 analysis_file=""
 output_dir="${TMPDIR:-/tmp}"
-claude_bin="${CLAUDE_CLI_PATH:-}"
+claude_command=()
 
 home_dir="${HOME:-}"
 if [ -n "$home_dir" ]; then
@@ -39,8 +39,8 @@ while [ "$#" -gt 0 ]; do
       output_dir="${2:-}"
       shift 2
       ;;
-    --claude)
-      claude_bin="${2:-}"
+    --claude-command-arg)
+      claude_command+=("${2:-}")
       shift 2
       ;;
     --help|-h)
@@ -69,26 +69,12 @@ if [ -z "$output_dir" ]; then
   exit 2
 fi
 
-if [ -z "$claude_bin" ]; then
-  claude_bin="$(command -v claude || true)"
+if [ "${#claude_command[@]}" -eq 0 ]; then
+  claude_command=(claude)
 fi
 
-if [ -z "$claude_bin" ] && [ -n "$home_dir" ]; then
-  for candidate in \
-    "$home_dir/.local/bin/claude" \
-    "$home_dir/.claude/local/claude" \
-    "/opt/homebrew/bin/claude" \
-    "/usr/local/bin/claude"
-  do
-    if [ -x "$candidate" ]; then
-      claude_bin="$candidate"
-      break
-    fi
-  done
-fi
-
-if [ -z "$claude_bin" ] || [ ! -x "$claude_bin" ]; then
-  echo "claude CLI not found; set --claude or CLAUDE_CLI_PATH" >&2
+if ! command -v "${claude_command[0]}" >/dev/null 2>&1; then
+  echo "claude CLI command not found: ${claude_command[0]}" >&2
   exit 127
 fi
 
@@ -123,7 +109,7 @@ system_prompt="Format the supplied macOS load analysis. Follow the response guid
   cat "$analysis_file"
 } >"$prompt_path"
 
-"$claude_bin" \
+"${claude_command[@]}" \
   -p \
   --no-session-persistence \
   --output-format text \

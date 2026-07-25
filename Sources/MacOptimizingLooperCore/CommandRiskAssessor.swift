@@ -35,6 +35,7 @@ public struct CommandRiskAssessor {
     public func assess(
         command: String,
         provider: LLMProviderKind,
+        providerCommand: String,
         model: String,
         effort: String,
         fastMode: Bool,
@@ -45,7 +46,7 @@ public struct CommandRiskAssessor {
         return try await Task.detached(priority: .userInitiated) {
             // Build the client inside the detached task from plain Sendable values so
             // nothing non-Sendable crosses the boundary.
-            let client = ProviderRegistry.makeClient(kind: provider)
+            let client = ProviderRegistry.makeClient(kind: provider, command: providerCommand)
             let response = try await client.complete(ChatRequest(
                 model: model,
                 system: systemPrompt,

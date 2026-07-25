@@ -93,13 +93,14 @@ public protocol ProviderCataloging {
 public enum ProviderRegistry {
     public static func makeClient(
         kind: LLMProviderKind,
+        command: String,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> LLMClient {
         switch kind {
         case .claude:
-            return ClaudeCLIClient(environment: environment)
+            return ClaudeCLIClient(command: command, environment: environment)
         case .codex:
-            return CodexCLIClient(environment: environment)
+            return CodexCLIClient(command: command, environment: environment)
         }
     }
 

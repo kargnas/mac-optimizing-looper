@@ -179,10 +179,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
                     optimizerReport = MacOptimizerReport(scriptPath: "mac-optimizer", output: "\(text.macOptimizerFailedPrefix): \(error)")
                 }
                 let providerKind = config.resolvedProviderKind
-                let client = ProviderRegistry.makeClient(kind: providerKind)
+                let client = ProviderRegistry.makeClient(
+                    kind: providerKind,
+                    command: config.command(for: providerKind)
+                )
                 let provider = LLMAdviceProvider(
                     client: client,
                     config: config,
+                    responseFormatter: ShellResponseFormatterProvider(
+                        claudeCommand: config.claudeCommand
+                    ),
                     supportsStructuredOutput: providerKind.supportsStructuredOutput
                 )
                 let snapshot = try collector.collect()
@@ -740,16 +746,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
         guard let payload = sender.representedObject as? SuggestionMenuPayload else { return }
         let providerKind = config.resolvedProviderKind
         let effective = effectiveConfig()   // concrete model/effort for "Default" selections
-        // Resolve the selected provider's CLI; without it there is no review session.
-        let executableURL = providerKind == .codex
-            ? CodexCLIClient.defaultExecutableURL()
-            : ClaudeCLIClient.defaultExecutableURL()
-        guard let executableURL else {
-            showAlert(title: strings.missingClaudeCLITitle, message: strings.missingClaudeCLIMessage)
-            return
-        }
 
         do {
+            let providerCommand: CLICommand
+            do {
+                providerCommand = try CLICommand(effective.command(for: providerKind))
+            } catch {
+                throw LLMError.invalidCommand(providerKind.displayName, String(describing: error))
+            }
+            guard let commandComponents = providerCommand.resolvedComponents(
+                environment: ProcessInfo.processInfo.environment
+            ) else {
+                throw LLMError.missingProviderCLI(providerKind.displayName)
+            }
             let prompt = TerminalScriptBuilder.claudeReviewPrompt(
                 for: payload.suggestion,
                 outputLanguageIdentifier: config.resolvedOutputLanguageIdentifier()
@@ -760,18 +769,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             let script: String
             switch providerKind {
             case .codex:
-                script = TerminalScriptBuilder.codexReviewScript(
+                script = try TerminalScriptBuilder.codexReviewScript(
                     promptFilePath: promptURL.path,
-                    codexExecutablePath: executableURL.path,
+                    commandComponents: commandComponents,
                     model: effective.model,
                     effort: effective.thinkingLevel,
                     fastMode: effective.fastMode,
                     languageIdentifier: config.resolvedOutputLanguageIdentifier()
                 )
             case .claude:
-                script = TerminalScriptBuilder.claudeReviewScript(
+                script = try TerminalScriptBuilder.claudeReviewScript(
                     promptFilePath: promptURL.path,
-                    claudeExecutablePath: executableURL.path,
+                    commandComponents: commandComponents,
                     model: effective.model,
                     languageIdentifier: config.resolvedOutputLanguageIdentifier()
                 )
@@ -827,6 +836,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             verdict = try await riskAssessor.assess(
                 command: command,
                 provider: effective.resolvedProviderKind,
+                providerCommand: effective.command(for: effective.resolvedProviderKind),
                 model: effective.model,
                 effort: effective.thinkingLevel,
                 fastMode: effective.fastMode,
@@ -1007,6 +1017,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
                 return text.missingClaudeCLITitle
             case .missingProviderCLI(let provider):
                 return text.providerCLINotFound(provider: provider)
+            case .invalidCommand(let provider, let reason):
+                return text.invalidCLICommand(provider: provider, reason: reason)
             case .processFailed(let status, let message):
                 return text.processFailed(status: status, message: message)
             case .invalidResponse:

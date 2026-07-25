@@ -59,7 +59,8 @@
 
 ## 설치
 
-PATH 위에 `claude` CLI 필요. macOS 13+.
+실행 가능한 Claude 또는 Codex CLI 명령어가 필요함. 기본값은 `claude`와 `codex`이며,
+설정에서 `ag claude agp` 또는 `ag codex agp` 같은 wrapper prefix로 바꿀 수 있음. macOS 13+.
 
 ```bash
 brew install --cask kargnas/tap/mac-optimizing-looper
@@ -77,7 +78,7 @@ bare 바이너리가 아니라 **번들**로 실행할 것 — `UNUserNotificati
 
 ## 입맛대로 설정
 
-설정에서 **프로바이더 / 모델 / 속도 / Fast Mode**를 고름 — 모델과 추론 강도는 각 CLI에서 **실시간**으로 읽어옴. 기본 백엔드는 `claude` CLI이며 `codex`도 지원함(스키마 기반 단일 패스, 별도 포맷 단계 없음). UI는 **10개 언어**로 현지화됐고, **Language** 피커가 UI 언어와 분석 출력 언어를 함께 정함.
+설정에서 **프로바이더 / 모델 / 속도 / Fast Mode**를 고름 — 모델과 추론 강도는 각 CLI에서 **실시간**으로 읽어옴. 기본 백엔드는 `claude` CLI이며 `codex`도 지원함(스키마 기반 단일 패스, 별도 포맷 단계 없음). Claude와 Codex 명령어에는 `ag claude agp`, `ag codex agp` 같은 argv prefix를 직접 입력할 수 있음. 앱이 native CLI 인자를 뒤에 붙이며, 같은 명령어를 분석·포맷·위험 검사·터미널 검토에 사용함. UI는 **10개 언어**로 현지화됐고, **Language** 피커가 UI 언어와 분석 출력 언어를 함께 정함.
 
 <p align="center"><img src="docs/settings-ko.png" alt="Mac Optimizing Looper 설정 — 프로바이더·모델·언어·주기" width="520"></p>
 
@@ -95,8 +96,8 @@ bare 바이너리가 아니라 **번들**로 실행할 것 — `UNUserNotificati
 **비용이 드나요?**
 기존 `claude` / `codex` CLI 사용분 외엔 없음. 앱은 무료이고 MIT 라이선스임.
 
-**`claude` CLI가 없으면요?**
-제안 없음 — 추측하지 않고 오류를 드러냄.
+**설정한 CLI 명령어가 없거나 실패하면요?**
+제안 없음 — spinner를 멈추고 exit code, signal, CLI 오류를 드러냄.
 
 <details>
 <summary><b>내부 동작</b> — 시스템 프롬프트, 전체 사이클, 의사결정 흐름, 설정, 한계</summary>
@@ -140,7 +141,7 @@ MUST NOT: claim anything was executed — the app never auto-runs.
 
 ### 설정
 
-설정은 `~/.config/mac-optimizing-looper/config.json`에 있음(`config.example.json` 복사): provider, model, thinking level, monitor seconds, interval, terminal, language. 실행 시 한 번만 읽음 — 직접 수정한 뒤엔 앱을 재시작할 것.
+설정은 `~/.config/mac-optimizing-looper/config.json`에 있음(`config.example.json` 복사): provider, `claudeCommand`, `codexCommand`, model, thinking level, monitor seconds, interval, terminal, language. 실행 시 한 번만 읽음 — 직접 수정한 뒤엔 앱을 재시작할 것.
 
 ### 한계 / 거부하는 것
 

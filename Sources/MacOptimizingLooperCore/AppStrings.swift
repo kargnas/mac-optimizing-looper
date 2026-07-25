@@ -158,7 +158,6 @@ public struct AppStrings {
         return fmt("terminal.appNotFound", id)
     }
     public var missingClaudeCLITitle: String { str("claude.missing.title") }
-    public var missingClaudeCLIMessage: String { str("claude.missing.message") }
     public var claudeReviewOpenFailed: String { str("claude.reviewOpenFailed") }
     public var settingsSavedRefreshing: String { str("settings.savedRefreshing") }
     public var settingsSaveFailed: String { str("settings.saveFailed") }
@@ -168,6 +167,8 @@ public struct AppStrings {
     public var macOptimizerFailedPrefix: String { str("macOptimizer.failedPrefix") }
     public var settingsWindowTitle: String { str("settings.windowTitle") }
     public var providerLabel: String { str("settings.providerLabel") }
+    public var claudeCommandLabel: String { str("settings.claudeCommandLabel") }
+    public var codexCommandLabel: String { str("settings.codexCommandLabel") }
     public var modelLabel: String { str("settings.modelLabel") }
     public var thinkingLevelLabel: String { str("settings.thinkingLevelLabel") }
     public var fastModeLabel: String { str("settings.fastModeLabel") }
@@ -228,6 +229,9 @@ public struct AppStrings {
     /// English-language error surfaces moved off inline `isKorean` branches in AppDelegate.
     public func providerCLINotFound(provider: String) -> String {
         fmt("error.providerCLINotFound", provider)
+    }
+    public func invalidCLICommand(provider: String, reason: String) -> String {
+        fmt("error.invalidCLICommand", provider, reason)
     }
     public var invalidResponseFormat: String { str("error.invalidResponseFormat") }
     public func decodingError(_ message: String) -> String {

@@ -54,7 +54,6 @@
 
 /* Проверка через Claude / ошибки CLI */
 "claude.missing.title" = "Claude CLI не найден";
-"claude.missing.message" = "Не удалось найти исполняемый файл claude.";
 "claude.reviewOpenFailed" = "Не удалось открыть проверку Claude";
 "claude.reviewStarting" = "Claude проверяет эту рекомендацию Mac Optimizing Looper…";
 "claude.notExecutable" = "Claude CLI не является исполняемым по указанному пути.";
@@ -62,6 +61,7 @@
 
 /* Сообщения об ошибках LLM */
 "error.providerCLINotFound" = "CLI %@ не найден";
+"error.invalidCLICommand" = "Недопустимая команда %@: %@";
 "error.invalidResponseFormat" = "Неверный формат ответа";
 "error.decodingError" = "Ошибка декодирования: %@";
 "macOptimizer.failedPrefix" = "сбой mac-optimizer";
@@ -71,6 +71,8 @@
 /* Окно настроек */
 "settings.windowTitle" = "Настройки Mac Optimizing Looper";
 "settings.providerLabel" = "Провайдер";
+"settings.claudeCommandLabel" = "Команда Claude";
+"settings.codexCommandLabel" = "Команда Codex";
 "settings.modelLabel" = "Модель";
 "settings.thinkingLevelLabel" = "Уровень рассуждений";
 "settings.fastModeLabel" = "Быстрый режим";

@@ -10,19 +10,31 @@ public struct ShellResponseFormatterProvider: ResponseFormatting {
     }
 
     private let scriptURL: URL?
+    private let claudeCommand: String
     private let environment: [String: String]
 
     public init(
         scriptURL: URL? = nil,
+        claudeCommand: String = "claude",
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) {
         self.scriptURL = scriptURL
+        self.claudeCommand = claudeCommand
         self.environment = environment
     }
 
     public func format(analysis: String, languageIdentifier: String, model: String) throws -> String {
         guard let scriptURL = scriptURL ?? Self.defaultScriptURL(environment: environment) else {
             throw LLMError.processFailed(-1, "response formatter script not found")
+        }
+        let command: CLICommand
+        do {
+            command = try CLICommand(claudeCommand)
+        } catch {
+            throw LLMError.invalidCommand(LLMProviderKind.claude.displayName, String(describing: error))
+        }
+        guard let resolvedCommand = command.resolvedComponents(environment: environment) else {
+            throw LLMError.missingClaudeCLI
         }
 
         let fileManager = FileManager.default
@@ -44,32 +56,33 @@ public struct ShellResponseFormatterProvider: ResponseFormatting {
             try? errorHandle.close()
         }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/bash")
-        process.arguments = [
+        var arguments = [
             scriptURL.path,
             "--language", languageIdentifier,
             "--model", model,
             "--analysis-file", analysisURL.path,
             "--output-dir", runDirectory.path
         ]
-        process.environment = environment
-        process.standardOutput = outputHandle
-        process.standardError = errorHandle
-
-        let group = DispatchGroup()
-        group.enter()
-        process.terminationHandler = { _ in group.leave() }
-
-        try process.run()
-        // No timeout: this runs on the same multi-minute analysis path, so we wait
-        // for completion rather than aborting a long run. (Previously a 120s cap.)
-        group.wait()
+        for component in resolvedCommand {
+            arguments.append(contentsOf: ["--claude-command-arg", component])
+        }
+        let bashCommand = try CLICommand("/bin/bash")
+        let termination = try CLIProcessRunner.run(
+            command: bashCommand,
+            executableURL: URL(fileURLWithPath: "/bin/bash"),
+            arguments: arguments,
+            environment: environment,
+            standardOutput: outputHandle,
+            standardError: errorHandle
+        )
 
         let outputData = (try? Data(contentsOf: outputURL)) ?? Data()
         let errorOutput = String(data: (try? Data(contentsOf: errorURL)) ?? Data(), encoding: .utf8) ?? ""
-        guard process.terminationStatus == 0 else {
-            throw LLMError.processFailed(process.terminationStatus, errorOutput.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard termination.succeeded else {
+            throw LLMError.processFailed(
+                termination.status,
+                termination.failureMessage(primary: errorOutput)
+            )
         }
 
         let metadata = try JSONDecoder().decode(FormatterMetadata.self, from: outputData)

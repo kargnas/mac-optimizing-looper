@@ -5,29 +5,35 @@ import Foundation
 /// When the request carries an `outputSchema`, codex's native `--output-schema` returns
 /// the final JSON directly (no second formatting pass).
 public struct CodexCLIClient: LLMClient {
-    private let executableURL: URL?
+    private let command: String
     private let environment: [String: String]
 
     public init(
-        executableURL: URL? = nil,
+        command: String = "codex",
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) {
-        self.executableURL = executableURL
+        self.command = command
         self.environment = environment
     }
 
     public func complete(_ request: ChatRequest) async throws -> ChatResponse {
-        guard let executableURL = executableURL ?? Self.defaultExecutableURL(environment: environment) else {
+        let cliCommand: CLICommand
+        do {
+            cliCommand = try CLICommand(command)
+        } catch {
+            throw LLMError.invalidCommand(LLMProviderKind.codex.displayName, String(describing: error))
+        }
+        guard let executableURL = cliCommand.executableURL(environment: environment) else {
             throw LLMError.missingProviderCLI(LLMProviderKind.codex.displayName)
         }
 
-        let output = try runCodex(request, executableURL: executableURL)
+        let output = try runCodex(request, command: cliCommand, executableURL: executableURL)
         return ChatResponse(choices: [
             ChatResponseChoice(message: ChatMessage(role: "assistant", content: output.trimmingCharacters(in: .whitespacesAndNewlines)))
         ])
     }
 
-    private func runCodex(_ request: ChatRequest, executableURL: URL) throws -> String {
+    private func runCodex(_ request: ChatRequest, command: CLICommand, executableURL: URL) throws -> String {
         let tmp = FileManager.default.temporaryDirectory
         let token = UUID().uuidString
         // `-o` writes ONLY the final assistant message, so we read clean output instead
@@ -54,25 +60,22 @@ public struct CodexCLIClient: LLMClient {
             try? errorHandle.close()
         }
 
-        let process = Process()
-        process.executableURL = executableURL
-        process.arguments = arguments(for: request, lastMessageURL: lastMessageURL, schemaURL: schemaURL)
-        process.environment = Self.processEnvironment(from: environment)
-        process.standardInput = nullHandle
-        process.standardOutput = errorHandle   // discard codex's event stream; final answer is in -o
-        process.standardError = errorHandle
-
-        let group = DispatchGroup()
-        group.enter()
-        process.terminationHandler = { _ in group.leave() }
-
-        try process.run()
-        // No timeout: a full analysis can take minutes; we wait rather than kill it.
-        group.wait()
+        let termination = try CLIProcessRunner.run(
+            command: command,
+            executableURL: executableURL,
+            arguments: arguments(for: request, lastMessageURL: lastMessageURL, schemaURL: schemaURL),
+            environment: environment,
+            standardInput: nullHandle,
+            standardOutput: errorHandle,
+            standardError: errorHandle
+        )
 
         let errorOutput = String(data: (try? Data(contentsOf: errorURL)) ?? Data(), encoding: .utf8) ?? ""
-        guard process.terminationStatus == 0 else {
-            throw LLMError.processFailed(process.terminationStatus, errorOutput.trimmingCharacters(in: .whitespacesAndNewlines))
+        guard termination.succeeded else {
+            throw LLMError.processFailed(
+                termination.status,
+                termination.failureMessage(primary: errorOutput)
+            )
         }
 
         let output = String(data: (try? Data(contentsOf: lastMessageURL)) ?? Data(), encoding: .utf8) ?? ""
@@ -118,46 +121,4 @@ public struct CodexCLIClient: LLMClient {
         return "\(trimmedSystem)\n\n\(user)"
     }
 
-    public static func defaultExecutableURL(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL? {
-        let fileManager = FileManager.default
-        return executableCandidates(environment: environment).first { fileManager.isExecutableFile(atPath: $0.path) }
-    }
-
-    private static func executableCandidates(environment: [String: String]) -> [URL] {
-        var paths: [String] = []
-        if let configured = environment["CODEX_CLI_PATH"], !configured.isEmpty {
-            paths.append(configured)
-        }
-        if let path = environment["PATH"] {
-            paths.append(contentsOf: path.split(separator: ":").map { "\($0)/codex" })
-        }
-
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        paths.append(contentsOf: [
-            "\(home)/.bun/bin/codex",
-            "\(home)/.local/bin/codex",
-            "/opt/homebrew/bin/codex",
-            "/usr/local/bin/codex",
-            "/usr/bin/codex"
-        ])
-
-        var seen = Set<String>()
-        return paths.compactMap { path in
-            let expanded = (path as NSString).expandingTildeInPath
-            guard seen.insert(expanded).inserted else { return nil }
-            return URL(fileURLWithPath: expanded)
-        }
-    }
-
-    private static func processEnvironment(from environment: [String: String]) -> [String: String] {
-        var result = environment
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let fallbackPath = "\(home)/.bun/bin:\(home)/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-        if let currentPath = result["PATH"], !currentPath.isEmpty {
-            result["PATH"] = "\(currentPath):\(fallbackPath)"
-        } else {
-            result["PATH"] = fallbackPath
-        }
-        return result
-    }
 }

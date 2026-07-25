@@ -1,5 +1,7 @@
 {
   "provider": "default",
+  "claudeCommand": "claude",
+  "codexCommand": "codex",
   "model": "default",
   "thinkingLevel": "default",
   "fastMode": false,

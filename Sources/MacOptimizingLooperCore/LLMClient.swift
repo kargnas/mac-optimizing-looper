@@ -73,6 +73,7 @@ public enum LLMError: Error, Equatable {
     /// A configured provider's CLI executable could not be located. The associated
     /// value is the provider's display name (e.g. "Codex") for user-facing messages.
     case missingProviderCLI(String)
+    case invalidCommand(String, String)
     case processFailed(Int32, String)
     case invalidResponse
     case decoding(String)

@@ -9,6 +9,12 @@ public struct AppConfig: Equatable {
     /// LLM backend CLI: "claude" or "codex". Defaults to claude; an absent/unknown
     /// value resolves to claude so older configs keep working unchanged.
     public var provider: String
+    /// Executable plus fixed prefix arguments used for every Claude invocation.
+    /// Native arguments are appended, e.g. `ag claude agp -p ...`.
+    public var claudeCommand: String
+    /// Executable plus fixed prefix arguments used for every Codex invocation.
+    /// Native arguments are appended, e.g. `ag codex agp exec ...`.
+    public var codexCommand: String
     public var model: String
     /// Reasoning level for the analysis pass. Provider-relative: claude `--effort`
     /// (low/medium/high/xhigh/max), codex `model_reasoning_effort` (low/medium/high/xhigh).
@@ -68,6 +74,8 @@ public struct AppConfig: Equatable {
 
     public init(
         provider: String = "claude",
+        claudeCommand: String = "claude",
+        codexCommand: String = "codex",
         model: String,
         thinkingLevel: String = "max",
         fastMode: Bool = false,
@@ -79,6 +87,8 @@ public struct AppConfig: Equatable {
         temperature: Double
     ) {
         self.provider = provider
+        self.claudeCommand = Self.normalizedCLICommand(claudeCommand, defaultCommand: "claude")
+        self.codexCommand = Self.normalizedCLICommand(codexCommand, defaultCommand: "codex")
         self.model = model
         self.thinkingLevel = thinkingLevel
         self.fastMode = fastMode
@@ -95,6 +105,8 @@ public struct AppConfig: Equatable {
         // (provider → Claude, model → that provider's default, effort → one below the top).
         var config = AppConfig(
             provider: autoSelection,
+            claudeCommand: "claude",
+            codexCommand: "codex",
             model: autoSelection,
             thinkingLevel: autoSelection,
             fastMode: false,
@@ -126,6 +138,12 @@ public struct AppConfig: Equatable {
 
         if let provider = fileConfig.provider {
             config.provider = normalizedProvider(provider)
+        }
+        if let claudeCommand = fileConfig.claudeCommand {
+            config.claudeCommand = normalizedCLICommand(claudeCommand, defaultCommand: "claude")
+        }
+        if let codexCommand = fileConfig.codexCommand {
+            config.codexCommand = normalizedCLICommand(codexCommand, defaultCommand: "codex")
         }
         if let model = fileConfig.model {
             config.model = model
@@ -188,6 +206,8 @@ public struct AppConfig: Equatable {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let data = try JSONEncoder.prettySorted.encode(FileConfig(
             provider: provider,
+            claudeCommand: claudeCommand,
+            codexCommand: codexCommand,
             model: model,
             thinkingLevel: thinkingLevel,
             fastMode: fastMode,
@@ -220,6 +240,18 @@ public struct AppConfig: Equatable {
     public static func normalizedTerminalAppBundleIdentifier(_ identifier: String) -> String? {
         let trimmed = identifier.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    public static func normalizedCLICommand(_ value: String, defaultCommand: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? defaultCommand : trimmed
+    }
+
+    public func command(for provider: LLMProviderKind) -> String {
+        switch provider {
+        case .claude: return claudeCommand
+        case .codex: return codexCommand
+        }
     }
 
     /// Clamps a thinking level to a known Claude `--effort` value, defaulting to
@@ -315,6 +347,8 @@ public struct AppConfig: Equatable {
 
 private struct FileConfig: Codable {
     let provider: String?
+    let claudeCommand: String?
+    let codexCommand: String?
     let model: String?
     let thinkingLevel: String?
     let fastMode: Bool?

@@ -113,6 +113,22 @@ final class MultiProviderTests: XCTestCase {
         XCTAssertEqual(CodexCLIClient.combinedPrompt(system: "S", user: "U"), "S\n\nU")
     }
 
+    // MARK: - Custom CLI commands
+
+    func testCLICommandParsesPrefixAndQuotes() throws {
+        XCTAssertEqual(try CLICommand("ag codex agp").components, ["ag", "codex", "agp"])
+        XCTAssertEqual(
+            try CLICommand("'/Applications/My CLI/bin/tool' --profile \"fast lane\"").components,
+            ["/Applications/My CLI/bin/tool", "--profile", "fast lane"]
+        )
+    }
+
+    func testCLICommandRejectsUnterminatedQuote() {
+        XCTAssertThrowsError(try CLICommand("ag 'codex")) { error in
+            XCTAssertEqual(error as? CLICommandError, .unterminatedQuote)
+        }
+    }
+
     // MARK: - Config provider / fastMode
 
     func testConfigBackwardCompatDefaultsToClaude() throws {
@@ -121,14 +137,18 @@ final class MultiProviderTests: XCTestCase {
         XCTAssertTrue(config.isProviderAuto)
         XCTAssertEqual(config.resolvedProviderKind, .claude)
         XCTAssertFalse(config.fastMode)
+        XCTAssertEqual(config.claudeCommand, "claude")
+        XCTAssertEqual(config.codexCommand, "codex")
     }
 
     func testConfigLoadsProviderAndFastMode() throws {
-        let json = "{\"provider\":\"codex\",\"fastMode\":true,\"model\":\"gpt-5.5\"}"
+        let json = "{\"provider\":\"codex\",\"fastMode\":true,\"model\":\"gpt-5.5\",\"claudeCommand\":\"ag claude agp\",\"codexCommand\":\"ag codex agp\"}"
         let config = try AppConfig.load(environment: [:], fileContents: Data(json.utf8))
         XCTAssertEqual(config.resolvedProviderKind, .codex)
         XCTAssertTrue(config.fastMode)
         XCTAssertEqual(config.model, "gpt-5.5")
+        XCTAssertEqual(config.claudeCommand, "ag claude agp")
+        XCTAssertEqual(config.codexCommand, "ag codex agp")
     }
 
     func testConfigNormalizesUnknownProvider() throws {

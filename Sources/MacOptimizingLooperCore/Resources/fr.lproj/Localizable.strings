@@ -54,7 +54,6 @@
 
 /* Examen Claude / erreurs du CLI */
 "claude.missing.title" = "CLI Claude introuvable";
-"claude.missing.message" = "Impossible de trouver l'exécutable claude.";
 "claude.reviewOpenFailed" = "Échec de l'ouverture de l'examen Claude";
 "claude.reviewStarting" = "Claude examine cette suggestion de Mac Optimizing Looper…";
 "claude.notExecutable" = "Le CLI Claude n'est pas exécutable au chemin configuré.";
@@ -62,6 +61,7 @@
 
 /* Surfaces d'erreur du LLM */
 "error.providerCLINotFound" = "CLI %@ introuvable";
+"error.invalidCLICommand" = "Commande %@ non valide : %@";
 "error.invalidResponseFormat" = "Format de réponse non valide";
 "error.decodingError" = "Erreur de décodage : %@";
 "macOptimizer.failedPrefix" = "échec de mac-optimizer";
@@ -71,6 +71,8 @@
 /* Fenêtre des réglages */
 "settings.windowTitle" = "Réglages de Mac Optimizing Looper";
 "settings.providerLabel" = "Fournisseur";
+"settings.claudeCommandLabel" = "Commande Claude";
+"settings.codexCommandLabel" = "Commande Codex";
 "settings.modelLabel" = "Modèle";
 "settings.thinkingLevelLabel" = "Niveau de raisonnement";
 "settings.fastModeLabel" = "Mode rapide";

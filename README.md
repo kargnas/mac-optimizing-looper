@@ -59,7 +59,9 @@ Anything not classified `SAFE` (including `unknown`) pops a confirmation dialog 
 
 ## Install
 
-Needs the `claude` CLI on your PATH. macOS 13+.
+Needs a working Claude or Codex CLI command. Defaults are `claude` and `codex`; both can
+be replaced in Settings with a wrapper prefix such as `ag claude agp` or `ag codex agp`.
+macOS 13+.
 
 ```bash
 brew install --cask kargnas/tap/mac-optimizing-looper
@@ -77,7 +79,7 @@ Run the **bundle**, not the bare binary — `UNUserNotificationCenter` needs a r
 
 ## Make it yours
 
-Switch **Provider / Model / Effort** right from the menu bar — no need to open Settings. Each has a **Default** option that auto-picks for you: Claude as the backend, a balanced model, and one notch below the top reasoning level. A fresh install just works, and you can still pin an exact value any time. While an analysis runs, the menu bar shows which backend is working. `claude` is the default backend; `codex` is also supported (one schema-constrained pass, no separate format step). Settings holds the rest — Fast Mode, analysis interval, terminal app, and **Language** (which sets both the UI and the language the model analyzes in). Models and reasoning levels are read live from each CLI.
+Switch **Provider / Model / Effort** right from the menu bar — no need to open Settings. Each has a **Default** option that auto-picks for you: Claude as the backend, a balanced model, and one notch below the top reasoning level. A fresh install just works, and you can still pin an exact value any time. While an analysis runs, the menu bar shows which backend is working. `claude` is the default backend; `codex` is also supported (one schema-constrained pass, no separate format step). Settings also lets you replace each executable with an argv prefix, such as `ag claude agp` or `ag codex agp`; the app appends the native CLI arguments and uses the same command for analysis, formatting, risk checks, and terminal review. Settings holds the rest — Fast Mode, analysis interval, terminal app, and **Language** (which sets both the UI and the language the model analyzes in). Models and reasoning levels are read live from each CLI.
 
 <p align="center"><img src="docs/settings.png" alt="Mac Optimizing Looper Settings — provider, model, language, interval" width="520"></p>
 
@@ -95,8 +97,8 @@ Only the live metrics + process table, sent to Anthropic via *your own* `claude`
 **What does it cost?**
 Nothing beyond your existing `claude` / `codex` CLI usage. The app is free and MIT-licensed.
 
-**No `claude` CLI installed?**
-Then no advice — it surfaces the error instead of guessing.
+**Configured CLI command missing or fails?**
+Then no advice — the spinner stops and the menu surfaces the exit code, signal, and CLI error instead of guessing.
 
 <details>
 <summary><b>Under the hood</b> — system prompt, full cycle, decision flow, config, limits</summary>
@@ -140,7 +142,7 @@ timer → collect → claude analyze → rank suggestions
 
 ### Config
 
-Config lives at `~/.config/mac-optimizing-looper/config.json` (copy `config.example.json`): provider, model, thinking level, monitor seconds, interval, terminal, language. It's read once at launch — restart after hand-editing.
+Config lives at `~/.config/mac-optimizing-looper/config.json` (copy `config.example.json`): provider, `claudeCommand`, `codexCommand`, model, thinking level, monitor seconds, interval, terminal, language. It's read once at launch — restart after hand-editing.
 
 ### Limits / what it refuses
 

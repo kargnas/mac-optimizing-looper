@@ -21,7 +21,7 @@ final class ClaudeCLIClientTests: XCTestCase {
         let cli = try makeFakeCLI(script: "cat >/dev/null\necho 'API Error: 429 usage limit reached'\nexit 1\n")
         defer { try? FileManager.default.removeItem(at: cli) }
 
-        let client = ClaudeCLIClient(executableURL: cli, environment: [:])
+        let client = ClaudeCLIClient(command: cli.path, environment: [:])
         do {
             _ = try await client.complete(request())
             XCTFail("expected processFailed")
@@ -36,7 +36,7 @@ final class ClaudeCLIClientTests: XCTestCase {
         let cli = try makeFakeCLI(script: "cat >/dev/null\necho 'partial stdout'\necho 'real error' >&2\nexit 1\n")
         defer { try? FileManager.default.removeItem(at: cli) }
 
-        let client = ClaudeCLIClient(executableURL: cli, environment: [:])
+        let client = ClaudeCLIClient(command: cli.path, environment: [:])
         do {
             _ = try await client.complete(request())
             XCTFail("expected processFailed")
@@ -51,8 +51,46 @@ final class ClaudeCLIClientTests: XCTestCase {
         let cli = try makeFakeCLI(script: "cat >/dev/null\necho 'analysis notes'\n")
         defer { try? FileManager.default.removeItem(at: cli) }
 
-        let client = ClaudeCLIClient(executableURL: cli, environment: [:])
+        let client = ClaudeCLIClient(command: cli.path, environment: [:])
         let response = try await client.complete(request())
         XCTAssertEqual(response.choices.first?.message.content, "analysis notes")
+    }
+
+    func testCustomCommandPrefixRunsBeforeNativeArguments() async throws {
+        let cli = try makeFakeCLI(script: "test \"$1\" = route || exit 9\ncat >/dev/null\necho 'wrapped analysis'\n")
+        defer { try? FileManager.default.removeItem(at: cli) }
+
+        let client = ClaudeCLIClient(command: "\(cli.path) route", environment: [:])
+        let response = try await client.complete(request())
+        XCTAssertEqual(response.choices.first?.message.content, "wrapped analysis")
+    }
+
+    func testSignalTerminationIsReportedInsteadOfHanging() async throws {
+        let cli = try makeFakeCLI(script: "kill -TERM $$\n")
+        defer { try? FileManager.default.removeItem(at: cli) }
+
+        let client = ClaudeCLIClient(command: cli.path, environment: [:])
+        do {
+            _ = try await client.complete(request())
+            XCTFail("expected processFailed")
+        } catch let LLMError.processFailed(status, message) {
+            XCTAssertEqual(status, 15)
+            XCTAssertTrue(message.contains("terminated by signal 15"))
+        }
+    }
+
+    func testFormatterUsesCustomClaudeCommandPrefix() throws {
+        let cli = try makeFakeCLI(script: "test \"$1\" = route || exit 9\necho '{\"summary\":\"ok\",\"statusBar\":{\"title\":\"0\",\"color\":\"green\"},\"suggestions\":[]}'\n")
+        defer { try? FileManager.default.removeItem(at: cli) }
+        let scriptURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("script/mac-optimizing-looper-format-json.sh")
+        let formatter = ShellResponseFormatterProvider(
+            scriptURL: scriptURL,
+            claudeCommand: "\(cli.path) route",
+            environment: [:]
+        )
+
+        let output = try formatter.format(analysis: "notes", languageIdentifier: "en", model: "sonnet")
+        XCTAssertTrue(output.contains("\"summary\": \"ok\""))
     }
 }

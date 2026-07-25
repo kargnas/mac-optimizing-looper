@@ -54,7 +54,6 @@
 
 /* Claude 검토 / CLI 오류 */
 "claude.missing.title" = "Claude CLI를 찾을 수 없음";
-"claude.missing.message" = "claude 실행 파일을 찾지 못했습니다.";
 "claude.reviewOpenFailed" = "Claude 검토 열기 실패";
 "claude.reviewStarting" = "Claude가 Mac Optimizing Looper 제안을 검토하고 있습니다…";
 "claude.notExecutable" = "설정한 경로에서 Claude CLI를 실행할 수 없습니다.";
@@ -62,6 +61,7 @@
 
 /* LLM 오류 표면 */
 "error.providerCLINotFound" = "%@ CLI를 찾을 수 없음";
+"error.invalidCLICommand" = "잘못된 %@ 명령어: %@";
 "error.invalidResponseFormat" = "잘못된 응답 형식";
 "error.decodingError" = "디코딩 오류: %@";
 "macOptimizer.failedPrefix" = "mac-optimizer 실패";
@@ -71,6 +71,8 @@
 /* 설정 창 */
 "settings.windowTitle" = "Mac Optimizing Looper 설정";
 "settings.providerLabel" = "프로바이더";
+"settings.claudeCommandLabel" = "Claude 명령어";
+"settings.codexCommandLabel" = "Codex 명령어";
 "settings.modelLabel" = "모델";
 "settings.thinkingLevelLabel" = "추론 강도";
 "settings.fastModeLabel" = "Fast 모드";

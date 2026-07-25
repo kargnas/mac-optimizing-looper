@@ -1,29 +1,35 @@
 import Foundation
 
 public struct ClaudeCLIClient: LLMClient {
-    private let executableURL: URL?
+    private let command: String
     private let environment: [String: String]
 
     public init(
-        executableURL: URL? = nil,
+        command: String = "claude",
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) {
-        self.executableURL = executableURL
+        self.command = command
         self.environment = environment
     }
 
     public func complete(_ request: ChatRequest) async throws -> ChatResponse {
-        guard let executableURL = executableURL ?? Self.defaultExecutableURL(environment: environment) else {
+        let cliCommand: CLICommand
+        do {
+            cliCommand = try CLICommand(command)
+        } catch {
+            throw LLMError.invalidCommand(LLMProviderKind.claude.displayName, String(describing: error))
+        }
+        guard let executableURL = cliCommand.executableURL(environment: environment) else {
             throw LLMError.missingClaudeCLI
         }
 
-        let output = try runClaude(request, executableURL: executableURL)
+        let output = try runClaude(request, command: cliCommand, executableURL: executableURL)
         return ChatResponse(choices: [
             ChatResponseChoice(message: ChatMessage(role: "assistant", content: output.trimmingCharacters(in: .whitespacesAndNewlines)))
         ])
     }
 
-    private func runClaude(_ request: ChatRequest, executableURL: URL) throws -> String {
+    private func runClaude(_ request: ChatRequest, command: CLICommand, executableURL: URL) throws -> String {
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("mac-optimizing-looper-claude-\(UUID().uuidString).out")
         let errorURL = FileManager.default.temporaryDirectory
@@ -48,40 +54,36 @@ public struct ClaudeCLIClient: LLMClient {
             try? errorHandle.close()
         }
 
-        let process = Process()
-        process.executableURL = executableURL
-        process.arguments = arguments(for: request)
-        process.environment = Self.processEnvironment(from: environment)
-        process.standardInput = inputHandle
-        process.standardOutput = outputHandle
-        process.standardError = errorHandle
-
-        let group = DispatchGroup()
-        group.enter()
-        process.terminationHandler = { _ in
-            group.leave()
-        }
-
-        try process.run()
-        // No timeout: a full analysis can take several minutes and its duration is
-        // highly variable, so we wait for claude to finish instead of killing a run
-        // that is still working. (Previously a 120s cap aborted long inspections.)
-        group.wait()
+        let termination = try CLIProcessRunner.run(
+            command: command,
+            executableURL: executableURL,
+            arguments: arguments(for: request),
+            environment: environment,
+            standardInput: inputHandle,
+            standardOutput: outputHandle,
+            standardError: errorHandle
+        )
 
         let output = String(data: (try? Data(contentsOf: outputURL)) ?? Data(), encoding: .utf8) ?? ""
         let errorOutput = String(data: (try? Data(contentsOf: errorURL)) ?? Data(), encoding: .utf8) ?? ""
 
-        guard process.terminationStatus == 0 else {
+        guard termination.succeeded else {
             // claude prints API failures ("API Error: 429 …", usage-limit notices) to
             // STDOUT and exits nonzero with an EMPTY stderr, so stderr alone loses the
             // actual cause and the UI shows a bare "process failed 1". Fall back to
             // stdout (capped: it is unbounded and lands in a one-line menu title).
             let stderrText = errorOutput.trimmingCharacters(in: .whitespacesAndNewlines)
             let stdoutText = output.trimmingCharacters(in: .whitespacesAndNewlines)
-            let message = stderrText.isEmpty ? String(stdoutText.prefix(300)) : stderrText
-            throw LLMError.processFailed(process.terminationStatus, message)
+            let fallback = String(stdoutText.prefix(300))
+            throw LLMError.processFailed(
+                termination.status,
+                termination.failureMessage(primary: stderrText, fallback: fallback)
+            )
         }
 
+        guard !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw LLMError.invalidResponse
+        }
         return output
     }
 
@@ -110,46 +112,4 @@ public struct ClaudeCLIClient: LLMClient {
         return arguments
     }
 
-    public static func defaultExecutableURL(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL? {
-        let fileManager = FileManager.default
-        let candidates = executableCandidates(environment: environment)
-        return candidates.first { fileManager.isExecutableFile(atPath: $0.path) }
-    }
-
-    private static func executableCandidates(environment: [String: String]) -> [URL] {
-        var paths: [String] = []
-        if let configured = environment["CLAUDE_CLI_PATH"], !configured.isEmpty {
-            paths.append(configured)
-        }
-        if let path = environment["PATH"] {
-            paths.append(contentsOf: path.split(separator: ":").map { "\($0)/claude" })
-        }
-
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        paths.append(contentsOf: [
-            "\(home)/.local/bin/claude",
-            "/opt/homebrew/bin/claude",
-            "/usr/local/bin/claude",
-            "/usr/bin/claude"
-        ])
-
-        var seen = Set<String>()
-        return paths.compactMap { path in
-            let expanded = (path as NSString).expandingTildeInPath
-            guard seen.insert(expanded).inserted else { return nil }
-            return URL(fileURLWithPath: expanded)
-        }
-    }
-
-    private static func processEnvironment(from environment: [String: String]) -> [String: String] {
-        var result = environment
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let fallbackPath = "\(home)/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-        if let currentPath = result["PATH"], !currentPath.isEmpty {
-            result["PATH"] = "\(currentPath):\(fallbackPath)"
-        } else {
-            result["PATH"] = fallbackPath
-        }
-        return result
-    }
 }

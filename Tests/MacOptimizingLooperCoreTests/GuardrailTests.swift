@@ -40,14 +40,14 @@ final class GuardrailTests: XCTestCase {
         XCTAssertFalse(script.contains("\ntouch /tmp/mac-optimizing-looper-test"))
     }
 
-    func testClaudeReviewScriptOpensInteractiveSessionFromPromptFile() {
-        let script = TerminalScriptBuilder.claudeReviewScript(
+    func testClaudeReviewScriptOpensInteractiveSessionFromPromptFile() throws {
+        let script = try TerminalScriptBuilder.claudeReviewScript(
             promptFilePath: "/tmp/review prompt.txt",
-            claudeExecutablePath: "/opt/homebrew/bin/claude",
+            commandComponents: ["/opt/homebrew/bin/ag", "claude", "agp"],
             model: "sonnet"
         )
 
-        XCTAssertTrue(script.contains("/opt/homebrew/bin/claude"))
+        XCTAssertTrue(script.contains("'/opt/homebrew/bin/ag' 'claude' 'agp'"))
         XCTAssertTrue(script.contains("--model 'sonnet'"))
         XCTAssertTrue(script.contains("_mac_load_advisor_prompt='/tmp/review prompt.txt'"))
         // Prompt read from the file (not embedded inline) and passed as an argument.

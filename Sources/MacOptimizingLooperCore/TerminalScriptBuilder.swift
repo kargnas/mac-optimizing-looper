@@ -50,15 +50,17 @@ public enum TerminalScriptBuilder {
 
     public static func claudeReviewScript(
         promptFilePath: String,
-        claudeExecutablePath: String,
+        commandComponents: [String],
         model: String,
         languageIdentifier: String = Locale.preferredLanguages.first ?? Locale.current.identifier
-    ) -> String {
+    ) throws -> String {
+        guard let executablePath = commandComponents.first else { throw CLICommandError.empty }
         let text = AppStrings(languageIdentifier: languageIdentifier)
         let model = model.trimmingCharacters(in: .whitespacesAndNewlines)
         let modelArguments = model.isEmpty ? "" : " --model \(shellQuoted(model))"
         let promptPath = shellQuoted(promptFilePath)
-        let claudePath = shellQuoted(claudeExecutablePath)
+        let claudePath = shellQuoted(executablePath)
+        let command = commandComponents.map(shellQuoted).joined(separator: " ")
         let systemPrompt = shellQuoted("You are reviewing a macOS performance remediation suggestion. Be concise, practical, and safety-first.")
 
         return """
@@ -75,7 +77,7 @@ public enum TerminalScriptBuilder {
           # Interactive session (NOT -p): seed Claude with the review prompt so the
           # user can read the assessment and keep chatting. The prompt is read from
           # the file via "$(cat ...)" to avoid embedding multi-line/CJK text inline.
-          \(claudePath) --append-system-prompt \(systemPrompt)\(modelArguments) "$(cat "$_mac_load_advisor_prompt")"
+          \(command) --append-system-prompt \(systemPrompt)\(modelArguments) "$(cat "$_mac_load_advisor_prompt")"
         fi
         cleanup_prompt
         trap - EXIT INT TERM
@@ -90,12 +92,13 @@ public enum TerminalScriptBuilder {
     /// instructions (see `claudeReviewPrompt`, which is provider-neutral).
     public static func codexReviewScript(
         promptFilePath: String,
-        codexExecutablePath: String,
+        commandComponents: [String],
         model: String,
         effort: String,
         fastMode: Bool,
         languageIdentifier: String = Locale.preferredLanguages.first ?? Locale.current.identifier
-    ) -> String {
+    ) throws -> String {
+        guard let executablePath = commandComponents.first else { throw CLICommandError.empty }
         let text = AppStrings(languageIdentifier: languageIdentifier)
         let model = model.trimmingCharacters(in: .whitespacesAndNewlines)
         let effort = effort.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -104,7 +107,8 @@ public enum TerminalScriptBuilder {
         if !effort.isEmpty { optionArgs += " -c \(shellQuoted("model_reasoning_effort=\"\(effort)\""))" }
         if fastMode { optionArgs += " -c \(shellQuoted("service_tier=\"priority\""))" }
         let promptPath = shellQuoted(promptFilePath)
-        let codexPath = shellQuoted(codexExecutablePath)
+        let codexPath = shellQuoted(executablePath)
+        let command = commandComponents.map(shellQuoted).joined(separator: " ")
 
         return """
         clear
@@ -117,7 +121,7 @@ public enum TerminalScriptBuilder {
         elif [ ! -f "$_mac_load_advisor_prompt" ]; then
           printf '%s\\n' \(shellQuoted(text.reviewPromptMissing))
         else
-          \(codexPath)\(optionArgs) "$(cat "$_mac_load_advisor_prompt")"
+          \(command)\(optionArgs) "$(cat "$_mac_load_advisor_prompt")"
         fi
         cleanup_prompt
         trap - EXIT INT TERM

@@ -7,6 +7,8 @@ final class AppConfigTests: XCTestCase {
 
         // Fresh defaults are the "Default" (auto) sentinels, resolved at runtime.
         XCTAssertEqual(config.model, AppConfig.autoSelection)
+        XCTAssertEqual(config.claudeCommand, "claude")
+        XCTAssertEqual(config.codexCommand, "codex")
         XCTAssertEqual(config.thinkingLevel, AppConfig.autoSelection)
         XCTAssertEqual(config.monitorSeconds, 30)
         XCTAssertEqual(config.intervalSeconds, 3_600)

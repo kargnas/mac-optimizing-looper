@@ -4,6 +4,8 @@ import MacOptimizingLooperCore
 @MainActor
 final class SettingsWindowController: NSWindowController {
     private let providerPopup = NSPopUpButton()
+    private let claudeCommandField = NSTextField()
+    private let codexCommandField = NSTextField()
     private let modelPopup = NSPopUpButton()
     // Free-text model entry, shown only when the model popup's "Custom…" is selected.
     private let modelCustomField = NSTextField()
@@ -26,6 +28,8 @@ final class SettingsWindowController: NSWindowController {
     private let detectedLanguageField = NSTextField(labelWithString: "")
     private let effectiveLanguageField = NSTextField(labelWithString: "")
     private let providerLabel = NSTextField(labelWithString: "")
+    private let claudeCommandLabel = NSTextField(labelWithString: "")
+    private let codexCommandLabel = NSTextField(labelWithString: "")
     private let modelLabel = NSTextField(labelWithString: "")
     private let modelCustomLabel = NSTextField(labelWithString: "")
     private let thinkingLabel = NSTextField(labelWithString: "")
@@ -58,7 +62,7 @@ final class SettingsWindowController: NSWindowController {
         self.onSave = onSave
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 560),
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 500),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -81,6 +85,8 @@ final class SettingsWindowController: NSWindowController {
             selectProvider(config.resolvedProviderKind)
         }
         reloadCatalog()
+        claudeCommandField.stringValue = config.claudeCommand
+        codexCommandField.stringValue = config.codexCommand
         populateModels(selectingModel: config.model)
         populateEfforts(selecting: config.thinkingLevel)
         updateFastMode(checked: config.fastMode)
@@ -106,6 +112,8 @@ final class SettingsWindowController: NSWindowController {
         }
         providerPopup.target = self
         providerPopup.action = #selector(providerChanged(_:))
+        claudeCommandField.placeholderString = "claude"
+        codexCommandField.placeholderString = "codex"
 
         modelPopup.target = self
         modelPopup.action = #selector(modelChanged(_:))
@@ -158,6 +166,8 @@ final class SettingsWindowController: NSWindowController {
         languagePopup.action = #selector(languageChanged(_:))
 
         let providerRow = row(label: providerLabel, control: providerPopup)
+        let claudeCommandRow = row(label: claudeCommandLabel, control: claudeCommandField)
+        let codexCommandRow = row(label: codexCommandLabel, control: codexCommandField)
         let modelRow = row(label: modelLabel, control: modelPopup)
         let customRow = row(label: modelCustomLabel, control: modelCustomField)
         modelCustomRow = customRow
@@ -176,6 +186,8 @@ final class SettingsWindowController: NSWindowController {
 
         let stack = NSStackView(views: [
             providerRow,
+            claudeCommandRow,
+            codexCommandRow,
             modelRow,
             customRow,
             thinkingRow,
@@ -199,6 +211,8 @@ final class SettingsWindowController: NSWindowController {
             stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -24),
             stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 24),
             providerPopup.widthAnchor.constraint(equalToConstant: 160),
+            claudeCommandField.widthAnchor.constraint(equalToConstant: 260),
+            codexCommandField.widthAnchor.constraint(equalToConstant: 260),
             modelPopup.widthAnchor.constraint(equalToConstant: 260),
             modelCustomField.widthAnchor.constraint(equalToConstant: 260),
             thinkingPopup.widthAnchor.constraint(equalToConstant: 200),
@@ -475,6 +489,8 @@ final class SettingsWindowController: NSWindowController {
         let text = AppStrings(languageIdentifier: currentConfig.resolvedOutputLanguageIdentifier())
         window?.title = text.settingsWindowTitle
         providerLabel.stringValue = text.providerLabel
+        claudeCommandLabel.stringValue = text.claudeCommandLabel
+        codexCommandLabel.stringValue = text.codexCommandLabel
         modelLabel.stringValue = text.modelLabel
         modelCustomLabel.stringValue = text.customModelOption
         thinkingLabel.stringValue = text.thinkingLevelLabel
@@ -505,6 +521,30 @@ final class SettingsWindowController: NSWindowController {
     @objc private func save(_ sender: NSButton) {
         let interval = selectedIntervalSeconds()
         let languageIdentifier = AppConfig.normalizedLanguageIdentifier(selectedLanguageIdentifier())
+        let claudeCommand = AppConfig.normalizedCLICommand(
+            claudeCommandField.stringValue,
+            defaultCommand: "claude"
+        )
+        let codexCommand = AppConfig.normalizedCLICommand(
+            codexCommandField.stringValue,
+            defaultCommand: "codex"
+        )
+        for (provider, command) in [(LLMProviderKind.claude, claudeCommand), (.codex, codexCommand)] {
+            do {
+                _ = try CLICommand(command)
+            } catch {
+                let text = AppStrings(languageIdentifier: currentConfig.resolvedOutputLanguageIdentifier())
+                let alert = NSAlert()
+                alert.messageText = text.settingsSaveFailed
+                alert.informativeText = text.invalidCLICommand(
+                    provider: provider.displayName,
+                    reason: String(describing: error)
+                )
+                alert.addButton(withTitle: text.ok)
+                alert.runModal()
+                return
+            }
+        }
 
         // Resolve the chosen model: a catalog slug, or the trimmed custom field.
         let chosenModel: String
@@ -518,6 +558,8 @@ final class SettingsWindowController: NSWindowController {
         // Persist the raw popup selections so "Default" is stored as the auto sentinel (it
         // resolves at runtime), not baked into a concrete provider/model/effort.
         newConfig.provider = (providerPopup.selectedItem?.representedObject as? String) ?? LLMProviderKind.claude.rawValue
+        newConfig.claudeCommand = claudeCommand
+        newConfig.codexCommand = codexCommand
         newConfig.model = chosenModel.isEmpty ? AppConfig.autoSelection : chosenModel
         newConfig.thinkingLevel = (thinkingPopup.selectedItem?.representedObject as? String) ?? AppConfig.autoSelection
         // Only persist Fast Mode when the control is actually enabled (model supports it).

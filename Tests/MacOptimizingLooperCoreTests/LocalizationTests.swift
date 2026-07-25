@@ -87,6 +87,12 @@ final class LocalizationTests: XCTestCase {
         XCTAssertTrue(AppStrings(languageIdentifier: "ko").analysisFailed("boom").contains("boom"))
         XCTAssertTrue(AppStrings(languageIdentifier: "ja").analysisFailed("boom").contains("boom"))
         XCTAssertTrue(AppStrings(languageIdentifier: "en").providerCLINotFound(provider: "Codex").contains("Codex"))
+        let invalidCommand = AppStrings(languageIdentifier: "ko").invalidCLICommand(
+            provider: "Claude",
+            reason: "quote"
+        )
+        XCTAssertTrue(invalidCommand.contains("Claude"))
+        XCTAssertTrue(invalidCommand.contains("quote"))
     }
 
     func testProcessFailedKeepsBothPlaceholders() {

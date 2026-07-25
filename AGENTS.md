@@ -21,6 +21,11 @@ periodically analyzes system load with Claude and surfaces prioritized advice.
 - `provider` (config, default `claude`) selects the LLM backend (`claude`|`codex`); an
   absent/unknown value resolves to `claude` so old configs keep working. See **LLM
   providers** below.
+- `claudeCommand` / `codexCommand` (defaults `claude` / `codex`) are argv prefixes for
+  every invocation of that provider. Settings accepts wrappers such as `ag claude agp`
+  and `ag codex agp`; the app appends its native CLI arguments. Commands are parsed as
+  executable + fixed arguments, not evaluated by a shell. The old `CLAUDE_CLI_PATH` /
+  `CODEX_CLI_PATH` overrides are intentionally unsupported.
 - `thinkingLevel` (config) = the reasoning level for the **analysis pass**, provider-relative
   (claude `--effort`, codex `model_reasoning_effort`; low/medium/high/xhigh/max, default
   `max`; invalid values clamp to `max`). The claude JSON formatter and the command
@@ -92,6 +97,16 @@ The app drives an LLM **CLI**, not an API. Backends sit behind `LLMProviderKind`
 (`claude`|`codex`) and `ProviderRegistry` (`makeClient` / `catalog`). Every in-app LLM
 call (analysis, risk-check, terminal review) routes through the selected provider; the
 default is `claude`. Design doc: `docs/superpowers/specs/2026-06-20-multi-provider-llm-design.md`.
+
+- **Command prefixes** route through `CLICommand` and `CLIProcessRunner`. The same saved
+  command covers analysis, risk-check, Claude's JSON formatter, and interactive terminal
+  review. Runs have no artificial timeout: `Process.waitUntilExit()` observes the real CLI
+  exit, then checks normal exit vs signal termination, exit status, and required output.
+  Wrapper commands should `exec` their final CLI so termination propagates exactly; `ag`
+  does this.
+- Bundled formatter/guide scripts use `/bin/bash` explicitly. Do not switch the guide
+  back to `/usr/bin/env bash`: GUI/test environments can lack locale variables, causing
+  Homebrew Bash to hang while emitting the guide's Unicode heredoc.
 
 - **Capabilities** live on `LLMProviderKind`. `supportsStructuredOutput` decides the
   advice pipeline: codex returns schema-constrained JSON via `--output-schema` in one
@@ -170,6 +185,7 @@ Sources/
     AdviceProvider.swift      # routes analysis → LLMClient
     PromptBuilder.swift       # advice prompt + JSON schema
     LLMClient.swift / LLMProvider.swift   # provider abstraction
+    CLICommand.swift          # custom argv prefix parsing + real process termination
     ClaudeCLIClient.swift / ClaudeModelCatalog.swift
     CodexCLIClient.swift / CodexModelCatalog.swift
     CommandExecutor.swift     # the ONE execution path (background)

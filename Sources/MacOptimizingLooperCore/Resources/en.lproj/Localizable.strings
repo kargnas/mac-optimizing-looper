@@ -56,7 +56,6 @@
 
 /* Claude review / CLI errors */
 "claude.missing.title" = "Claude CLI Not Found";
-"claude.missing.message" = "Could not find the claude executable.";
 "claude.reviewOpenFailed" = "Failed to Open Claude Review";
 "claude.reviewStarting" = "Claude is reviewing this Mac Optimizing Looper suggestion…";
 "claude.notExecutable" = "Claude CLI is not executable at the configured path.";
@@ -64,6 +63,7 @@
 
 /* LLM error surfaces */
 "error.providerCLINotFound" = "%@ CLI not found";
+"error.invalidCLICommand" = "Invalid %@ command: %@";
 "error.invalidResponseFormat" = "Invalid response format";
 "error.decodingError" = "Decoding error: %@";
 "macOptimizer.failedPrefix" = "mac-optimizer failed";
@@ -73,6 +73,8 @@
 /* Settings window */
 "settings.windowTitle" = "Mac Optimizing Looper Settings";
 "settings.providerLabel" = "Provider";
+"settings.claudeCommandLabel" = "Claude Command";
+"settings.codexCommandLabel" = "Codex Command";
 "settings.modelLabel" = "Model";
 "settings.thinkingLevelLabel" = "Thinking Level";
 "settings.fastModeLabel" = "Fast Mode";
