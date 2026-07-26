@@ -27,15 +27,32 @@
       "preLaunchTask": "swift: Build Release MacOptimizingLooper"
     },
     {
-      // Launch the packaged bundle under LLDB so breakpoints in
-      // AppDelegate / Core hit while the real bundle id is live.
-      // Pre-launch task builds + ad-hoc codesigns the bundle first.
       "name": "🐞 Debug App Bundle (LLDB)",
       "type": "lldb",
       "request": "launch",
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/dist/MacOptimizingLooper.app/Contents/MacOS/MacOptimizingLooper",
       "preLaunchTask": "🚀 Build & Run Bundle"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:mac-optimizer-loop}",
+      "name": "Debug MacOptimizingLooper",
+      "target": "MacOptimizingLooper",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug MacOptimizingLooper"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:mac-optimizer-loop}",
+      "name": "Release MacOptimizingLooper",
+      "target": "MacOptimizingLooper",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release MacOptimizingLooper"
     }
   ],
   "compounds": [
